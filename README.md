@@ -5,6 +5,25 @@ C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
 
 ---
 
+## Ringkasan tujuan
+Memperbaiki masalah yang sering muncul pada Windows PowerShell session untuk proyek ini:
+- Memulihkan session PATH agar perintah sistem (where.exe, python, gh, choco) terdeteksi.
+- Memastikan venv dibuat & diaktifkan menggunakan interpreter sistem yang benar.
+- Memperbaiki env var sertifikat (SSL_CERT_FILE) yang menunjuk file hilang sehingga httpx / Jupyter extension manager tidak crash.
+- Memperbaiki atau menulis ulang Jupyter launcher (.exe) agar menunjuk ke python venv yang benar.
+- Memasang paket Jupyter core yang hilang (ipywidgets, notebook, qtconsole) dan verifikasi versi.
+- Menjalankan JupyterLab tanpa error.
+
+---
+
+## 0) Catatan penting sebelum mulai
+- Buka PowerShell biasa (Run as Administrator hanya bila disebutkan).
+- Jalankan blok per blok, jangan paste semuanya sekaligus.
+- Jika PowerShell menanyakan konfirmasi untuk Set-ExecutionPolicy, jawab sesuai instruksi (biasanya `Y` untuk apply).
+- Pastikan berada di folder project root seperti dijelaskan di atas.
+
+---
+
 ## 1) Pastikan kamu berada di root proyek yang benar
 ```powershell
 # 1) cek lokasi kerja & file/folder root
@@ -21,10 +40,10 @@ Test-Path .\README.md
 
 ## 2) Periksa nested folder (hindari path ganda)
 ```powershell
-# 2) cari folder bernama project di dalam folder saat ini (cek duplikat)
+# 2) cari duplikat folder proyek di dalam folder saat ini (cek nested)
 Get-ChildItem -Directory | Select-Object Name
 
-# jika ada nested folder bernama "social-media-sentiment-analysis" di dalam,
+# jika ada nested folder bernama "social-media-sentiment-analysis",
 # pindah ke parent yang berisi venv (sesuaikan path bila perlu):
 # Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
 ```
@@ -33,7 +52,7 @@ Get-ChildItem -Directory | Select-Object Name
 
 ## 3) Perbaiki session PATH sementara (jika where.exe/python tidak ditemukan)
 ```powershell
-# 3) pastikan PATH session ada dan System32 tersedia
+# 3) cek PATH session
 Write-Host "Session PATH exists?"; if ($env:PATH) { "Yes" } else { "No or empty" }
 Get-Command where.exe -ErrorAction SilentlyContinue
 Get-Command python -ErrorAction SilentlyContinue
@@ -109,7 +128,7 @@ python --version
 python -c "import sys; print('sys.executable=', sys.executable)"
 python -m pip --version
 
-# jika Activate.ps1 masih tidak ditemukan, gunakan python langsung:
+# jika Activate.ps1 tidak ditemukan, gunakan python langsung:
 # .\venv\Scripts\python.exe --version
 ```
 
@@ -135,7 +154,7 @@ Get-ChildItem Env: | Where-Object Name -match 'CERT|SSL|REQUESTS|CURL|COMPOSER|P
 
 ---
 
-## 9) Reinstall / perbaiki Jupyter & launcher di dalam venv
+## 9) Reinstall / perbaiki Jupyter & launcher di dalam venv (tulis ulang console_scripts)
 ```powershell
 # 9) pastikan venv aktif, lalu perbarui & reinstall jupyter agar wrapper exe menunjuk ke python venv
 python -m pip install --upgrade pip setuptools wheel
@@ -150,6 +169,44 @@ Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
 Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 ```
+
+---
+
+## 9a) (Tambahan) Pasang paket Jupyter core yang belum terinstall
+Dari daftarmu, paket berikut belum terpasang: ipywidgets, notebook, qtconsole. Jalankan blok ini setelah venv aktif.
+```powershell
+# 9a) install missing Jupyter core packages
+python -m pip install --upgrade ipywidgets notebook qtconsole
+
+# untuk classic notebook widget support (jika kamu pake classic notebook)
+python -m pip install --upgrade widgetsnbextension
+# enable widgets extension for classic notebook (User scope)
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+
+# verifikasi impor dan versi (jalankan satu perintah per baris)
+python -c "import ipywidgets; print('ipywidgets', getattr(ipywidgets,'__version__', 'n/a'))"
+python -c "import notebook; print('notebook', getattr(notebook,'__version__', 'n/a'))"
+python -c "import qtconsole; print('qtconsole', getattr(qtconsole,'__version__', 'n/a'))"
+python -c "import jupyterlab; print('jupyterlab', getattr(jupyterlab,'__version__', 'n/a'))"
+
+# cek jupyter core versions summary
+jupyter --version
+```
+
+Expected / example (from your earlier report):
+- JupyterLab: 4.4.9 (already installed)
+- IPython: 9.6.0
+- ipykernel: 6.30.1
+- ipywidgets: (will be installed by above)
+- jupyter_client: 8.6.3
+- jupyter_core: 5.8.1
+- jupyter_server: 2.17.0
+- nbclient: 0.10.2
+- nbconvert: 7.16.6
+- nbformat: 5.10.4
+- notebook: (will be installed)
+- qtconsole: (will be installed)
+- traitlets: 5.14.3
 
 ---
 
@@ -179,6 +236,8 @@ python -m jupyter lab
 # Jika perlu debug verbose:
 # python -m jupyter lab --debug
 ```
+
+Yang diharapkan: JupyterLab berjalan tanpa FileNotFoundError terkait SSL_CERT_FILE dan tanpa stacktrace untuk extension manager pypi. Buka URL yang diprint di terminal (http://localhost:8888/lab?...).
 
 ---
 

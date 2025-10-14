@@ -1,48 +1,182 @@
-# Install & make Jupyter (and missing core packages) permanent for this project
-Run these PowerShell blocks from the project root:
+# Perbaikan & Instalasi Permanen Jupyter untuk proyek
+Jalankan semua blok PowerShell ini dari folder proyek:
 C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
 
-Notes:
-- Run blocks one by one (don't paste everything at once).
-- venv is used as the persistent environment for this project — packages you install into venv remain installed across sessions.
-- The script below also sets SSL_CERT_FILE to certifi permanently for your User environment (so Jupyter extension manager / httpx TLS errors are avoided across restarts).
-- You do NOT need Administrator for the User-level changes. If you want Machine-level env changes, run the relevant commands in an elevated PowerShell.
+Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, dan langkah untuk membuat beberapa pengaturan menjadi permanen (User‑level). Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan error, salin seluruh output error dan tempel di chat — saya bantu koreksi langkah spesifiknya.
 
 ---
 
-## A) Activate venv (make sure you are in project root)
+## Catatan umum
+- Buka PowerShell biasa (Run as Administrator hanya jika saya tandai).
+- Jangan paste semuanya sekaligus — jalankan blok 1 → 2 → 3 … dst.
+- Banyak perintah mengasumsikan venv berada di root proyek (.\venv). Jika struktur berbeda, sesuaikan path.
+- Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan [Environment]::SetEnvironmentVariable(...,'User') membuatnya permanen untuk user.
+
+---
+
+## 0) Lokasi aman (mulai di sini)
+C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
+
+---
+
+## 1) Pastikan berada di root proyek
 ```powershell
-# change to project root if needed
-Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
+Get-Location
+Get-ChildItem -Name
 
-# dot-source activation (PowerShell)
-. .\venv\Scripts\Activate.ps1
-
-# quick checks
-python --version
-python -c "import sys; print('sys.executable=', sys.executable)"
-python -m pip --version
+# verifikasi file/folder penting
+Test-Path .\venv
+Test-Path .\src\main.py
+Test-Path .\README.md
 ```
 
 ---
 
-## B) Upgrade tooling and reinstall Jupyter + core packages into venv (persistent in this venv)
+## 2) Periksa nested folder (hindari path ganda)
 ```powershell
-# upgrade pip/build tools
+Get-ChildItem -Directory | Select-Object Name
+
+# jika ada nested dengan nama project, pindah ke parent yang benar:
+# Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
+```
+
+---
+
+## 3) Perbaiki session PATH sementara (jika where.exe/python tidak ditemukan)
+```powershell
+Write-Host "Session PATH exists?"; if ($env:PATH) { "Yes" } else { "No or empty" }
+Get-Command where.exe -ErrorAction SilentlyContinue
+Get-Command python -ErrorAction SilentlyContinue
+
+# jika where.exe/python tidak ditemukan, jalankan (session-only):
+$machine = [Environment]::GetEnvironmentVariable('Path','Machine')
+$user = [Environment]::GetEnvironmentVariable('Path','User')
+$env:PATH = if ($user) { $machine + ';' + $user } else { $machine }
+if (-not ($env:PATH -match 'Windows\\System32')) { $env:PATH += ';C:\Windows\System32' }
+
+# verifikasi lagi
+Get-Command where.exe -ErrorAction SilentlyContinue
+Get-Command python -ErrorAction SilentlyContinue
+```
+
+---
+
+## 4) Temukan interpreter Python sistem dan set $PY
+```powershell
+Remove-Variable PY -ErrorAction SilentlyContinue
+$cmd = Get-Command python -ErrorAction SilentlyContinue
+if ($cmd) { $PY = $cmd.Source } else {
+  $candidates = @(
+    "$env:LOCALAPPDATA\Programs\Python\Python314\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+    "C:\Python314\python.exe",
+    "C:\Python312\python.exe"
+  )
+  foreach ($p in $candidates) { if (-not $PY -and (Test-Path $p)) { $PY = $p } }
+}
+if (-not $PY) { Write-Error "Python tidak ditemukan. Install Python atau beri path penuh ke python.exe"; throw }
+Write-Host "Using Python: $PY"
+& $PY --version
+```
+
+---
+
+## 5) Cek / buat ulang venv jika perlu (jalankan di root proyek)
+```powershell
+Test-Path .\venv\Scripts\python.exe
+Get-ChildItem .\venv\Scripts\* -ErrorAction SilentlyContinue | Select-Object Name
+
+# Jika venv tidak ada / rusak:
+if (-not (Test-Path .\venv\Scripts\python.exe)) {
+  if (Test-Path .\venv) { Remove-Item -Recurse -Force .\venv }
+  & $PY -m venv .\venv
+}
+
+Test-Path .\venv\Scripts\python.exe
+```
+
+---
+
+## 6) Pastikan ExecutionPolicy agar Activate.ps1 bisa dijalankan (CurrentUser)
+```powershell
+Get-ExecutionPolicy -List
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+```
+
+(You may be prompted to confirm; answer `Y`.)
+
+---
+
+## 7) Aktifkan venv (dot‑sourcing) dan verifikasi interpreter venv
+```powershell
+. .\venv\Scripts\Activate.ps1
+
+# verifikasi
+python --version
+python -c "import sys; print('sys.executable=', sys.executable)"
+python -m pip --version
+
+# jika Activate.ps1 tidak ditemukan, gunakan:
+# .\venv\Scripts\python.exe --version
+```
+
+---
+
+## 8) Perbaiki env var sertifikat (SSL_CERT_FILE) — permanen untuk User (direkomendasikan)
+```powershell
+# install certifi ke venv (persistent inside this venv)
+python -m pip install --upgrade certifi
+
+# dapatkan path dan set untuk session
+$cert = & python -c "import certifi; print(certifi.where())"
+$env:SSL_CERT_FILE = $cert
+Write-Host "Using SSL_CERT_FILE (session) = $env:SSL_CERT_FILE"
+
+# set permanen untuk User (makes it persistent across new shells)
+[Environment]::SetEnvironmentVariable('SSL_CERT_FILE',$cert,'User')
+Write-Host "SSL_CERT_FILE set permanently for User to: $cert"
+
+# cek env var terkait
+Get-ChildItem Env: | Where-Object Name -match 'CERT|SSL|REQUESTS|CURL|COMPOSER|PHP' | Format-Table Name,Value -AutoSize
+```
+
+Jika kamu tidak ingin membuatnya permanen, hapus last line and keep only the session setting.
+
+---
+
+## 9) Reinstall / perbaiki Jupyter & launchers di venv (tulis ulang console_scripts) — persistent in venv
+```powershell
 python -m pip install --upgrade pip setuptools wheel
 
-# reinstall jupyter core packages and ipykernel so console_scripts wrappers are rewritten
+# reinstall jupyter core packages & ipykernel so launchers point to this venv's python
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 
-# install missing Jupyter core packages (ipywidgets, notebook, qtconsole) persistently in venv
+# verify jupyter launchers in venv
+Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
+
+# if any corrupted wrapper caused 'Unable to create process' errors, remove and reinstall
+Remove-Item .\venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
+Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
+Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
+
+# reinstall to rewrite wrappers correctly
+python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
+```
+
+> Semua paket yang diinstall di atas berada di dalam venv sehingga menjadi permanen untuk proyek ini sampai venv dihapus.
+
+---
+
+## 9a) Pasang paket Jupyter core yang belum terinstall (ipywidgets, notebook, qtconsole) — persistent in venv
+```powershell
+# install missing Jupyter core packages
 python -m pip install --upgrade ipywidgets notebook qtconsole
 
-# widget support for classic notebook (if you ever use classic notebook)
+# (optional) classic notebook widget support
 python -m pip install --upgrade widgetsnbextension
-# enable widgets extension (sys-prefix ensures it installs to the current venv kernel environment)
 jupyter nbextension enable --py widgetsnbextension --sys-prefix
 
-# verify imports & versions (one line per check)
+# verifikasi impor & versi
 python -c "import ipywidgets; print('ipywidgets', getattr(ipywidgets,'__version__','n/a'))"
 python -c "import notebook; print('notebook', getattr(notebook,'__version__','n/a'))"
 python -c "import qtconsole; print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
@@ -52,77 +186,50 @@ python -c "import jupyterlab; print('jupyterlab', getattr(jupyterlab,'__version_
 jupyter --version
 ```
 
----
-
-## C) Recreate/repair CLI launchers if they were pointing to a wrong python path
-```powershell
-# list jupyter-related launchers in venv
-Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
-
-# if you still got "Unable to create process" errors earlier, remove the corrupted wrappers and reinstall
-Remove-Item .\venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
-Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
-Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
-
-# reinstall to rewrite wrappers correctly
-python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
-
-# re-check
-Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
-```
+Expected (example): jupyterlab 4.4.9, IPython 9.6.0, ipykernel 6.30.1, plus the newly installed ipywidgets/notebook/qtconsole.
 
 ---
 
-## D) Register kernel (so Jupyter UI selects this venv) — persistent for the user
+## 10) Daftarkan kernel ipykernel untuk venv (persisted for user)
 ```powershell
 python -m ipykernel install --user --name "social_media_sentiment" --display-name "Python (social-media-sentiment)"
 jupyter kernelspec list
 ```
 
----
-
-## E) Make SSL_CERT_FILE persistent (recommended) — sets CA bundle to certifi for your User env
-```powershell
-# install certifi (in venv) and obtain path
-python -m pip install --upgrade certifi
-$cert = & python -c "import certifi; print(certifi.where())"
-Write-Host "certifi bundle at: $cert"
-
-# set for this session (immediate)
-$env:SSL_CERT_FILE = $cert
-
-# persist for the User (so future sessions and Jupyter server runs use it)
-[Environment]::SetEnvironmentVariable('SSL_CERT_FILE',$cert,'User')
-Write-Host "SSL_CERT_FILE set permanently for User to: $cert"
-```
-
-If you prefer NOT to persist SSL_CERT_FILE, remove the last line and keep only the session setting.
+Kernel ini akan muncul di Jupyter UI untuk user kamu sampai kamu uninstall kernelspec.
 
 ---
 
-## F) Freeze requirements (optional, persistent file)
+## 11) (Opsional) Freeze requirements (persistent file)
 ```powershell
 python -m pip freeze > .\requirements.txt
-Get-Content .\requirements.txt -TotalCount 20
+Get-Content .\requirements.txt -TotalCount 30
 ```
 
 ---
 
-## G) Start JupyterLab (verify no errors)
+## 12) Jalankan JupyterLab dan periksa log startup
 ```powershell
-# stop old server if running (Ctrl+C)
+# hentikan server lama jika ada (Ctrl+C), lalu jalankan:
 python -m jupyter lab
 
-# if any issues, run debug for verbose logs:
+# jika perlu debug verbose:
 # python -m jupyter lab --debug
 ```
 
+Yang diharapkan: JupyterLab berjalan tanpa FileNotFoundError terkait SSL_CERT_FILE dan tanpa stacktrace untuk pypi extension manager. Buka URL yang diprint di terminal (http://localhost:8888/lab?...).
+
 ---
 
-## What this does and why it's permanent
-- All pip installs above target the activated venv; packages are installed into the venv directory and remain installed until you remove the venv — that is the "permanent" project environment.
-- Reinstalling with --force-reinstall rewrites the console_scripts launchers (.exe wrappers) so they point to this venv's python executable.
-- Registering the ipykernel with --user creates a persistent kernelspec for your user that Jupyter will list across sessions.
-- Setting SSL_CERT_FILE in the User environment makes the cert path available to new processes (including Jupyter) after you open a new shell (or reboot).
+## Pemeriksaan cepat bila masih ada error
+```powershell
+Get-ChildItem Env: | Where-Object Name -match 'CERT|SSL|REQUESTS|CURL|COMPOSER|PHP' | Format-Table Name,Value -AutoSize
+jupyter --version
+python -m jupyter lab --version
+(Get-Command jupyter -ErrorAction SilentlyContinue).Source
+python -m jupyter lab --debug
+```
 
-If any block errors, copy the full error text here and I will help fix that specific step.
+---
+
+Jika salah satu langkah mengeluarkan error, salin seluruh output error langkah tersebut dan tempelkan di sini. Saya akan bantu perbaiki langkah spesifiknya agar JupyterLab berjalan bersih dan perubahan yang diperlukan bersifat permanen untuk proyekmu.

@@ -1,0 +1,2 @@
+social-media-sentiment-analysis/models/** filter=lfs diff=lfs merge=lfs -text
+social-media-sentiment-analysis/data/** filter=lfs diff=lfs merge=lfs -text

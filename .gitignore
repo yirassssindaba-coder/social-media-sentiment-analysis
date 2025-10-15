@@ -1,0 +1,9 @@
+﻿# Virtual env
+social-media-sentiment-analysis/venv/
+# Python cache
+__pycache__/
+*.pyc
+# Jupyter checkpoints
+.ipynb_checkpoints/
+# data files (jika ada)
+data/

@@ -1,23 +1,25 @@
 # Perbaikan & Instalasi Permanen Jupyter untuk proyek
-Jalankan semua blok PowerShell ini dari folder proyek:
-C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
 
-Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, dan langkah untuk membuat beberapa pengaturan menjadi permanen (User‑level). Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan error, salin seluruh output error dan tempel di chat — saya bantu koreksi langkah spesifiknya.
+Jalankan semua blok PowerShell ini dari folder proyek:  
+`C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
+
+Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, dan langkah untuk membuat beberapa pengaturan menjadi permanen (User-level).  
+Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan error, salin seluruh output error dan tempel di chat — saya bantu koreksi langkah spesifiknya.
 
 ---
 
 ## Catatan umum
 - Buka PowerShell biasa (Run as Administrator hanya bila saya tandai).
 - Jangan paste semuanya sekaligus — jalankan blok 1 → 2 → 3 … dst.
-- Banyak perintah mengasumsikan venv berada di root proyek (.\venv). Jika struktur berbeda, sesuaikan path.
-- Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan [Environment]::SetEnvironmentVariable(...,'User') membuatnya permanen untuk user.
+- Banyak perintah mengasumsikan venv berada di root proyek (`.\venv`). Jika struktur berbeda, sesuaikan path.
+- Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan `[Environment]::SetEnvironmentVariable(...,'User')` membuatnya permanen untuk user.
 
 ---
 
 ## 0) Lokasi aman (mulai di sini)
-C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
+`C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
-> Petunjuk: buka PowerShell (bukan Administrator kecuali dicatat), pindah ke path di atas, lalu jalankan tiap blok perintah di bawah secara berurutan. Jalankan satu blok, pastikan tidak error, lalu lanjut ke blok berikutnya.
+> **Petunjuk:** buka PowerShell (bukan Administrator kecuali dicatat), pindah ke path di atas, lalu jalankan tiap blok perintah di bawah secara berurutan. Jalankan satu blok, pastikan tidak error, lalu lanjut ke blok berikutnya.
 
 ---
 
@@ -145,8 +147,28 @@ Jika kamu tidak ingin membuatnya permanen, hapus baris SetEnvironmentVariable da
 ---
 
 ## 9) Reinstall / perbaiki Jupyter & pasang semua paket core yang hilang (permanen di venv)
-Semua perintah berikut menginstal ke venv aktif sehingga perubahan bersifat permanen untuk environment proyek ini (sampai venv dihapus).
+**Solusi error:** Jika setelah cek dengan:
+```powershell
+python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
+```
+muncul error `ModuleNotFoundError: No module named 'ipywidgets'`, jalankan blok berikut (pastikan venv aktif):
 
+```powershell
+# Pastikan di root proyek dan venv aktif
+python --version
+where python
+
+# Install 3 paket penting ke venv
+python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
+
+# Enable widgets extension (untuk classic notebook)
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+
+# Verifikasi install & versi
+python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
+```
+
+**Langkah penuh install Jupyter dan dependensi:**
 ```powershell
 # upgrade pip/build tools
 python -m pip install --upgrade pip setuptools wheel
@@ -210,7 +232,7 @@ python -m jupyter lab
 # python -m jupyter lab --debug
 ```
 
-Yang diharapkan: JupyterLab berjalan tanpa FileNotFoundError terkait SSL_CERT_FILE dan tanpa stacktrace untuk pypi extension manager. Buka URL yang diprint di terminal (http://localhost:8888/lab?...).
+Yang diharapkan: JupyterLab berjalan tanpa FileNotFoundError terkait SSL_CERT_FILE dan tanpa stacktrace untuk pypi extension manager. Buka URL yang diprint di terminal (`http://localhost:8888/lab?...`).
 
 ---
 

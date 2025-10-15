@@ -139,8 +139,9 @@ python -m pip install --upgrade certifi `
   openpyxl xlrd xlsxwriter `
   plotly `
   requests beautifulsoup4 lxml `
-  joblib tqdm `
-  pyarrow
+  joblib tqdm
+# pyarrow (hanya untuk Python <=3.12, tidak support Python 3.14)
+# python -m pip install --upgrade pyarrow
 
 # Enable widgets extension for classic notebook
 jupyter nbextension enable --py widgetsnbextension --sys-prefix
@@ -151,6 +152,9 @@ python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
 # Freeze requirements agar environment tercatat
 python -m pip freeze > requirements.txt
 ```
+**Catatan:**  
+Jika kamu memakai Python 3.14, **jangan install pyarrow** (belum tersedia wheel, akan gagal build seperti error sebelumnya).  
+Jika butuh pyarrow, **gunakan Python 3.11 atau 3.12 untuk venv**, lalu install `pyarrow`.
 
 ---
 
@@ -252,10 +256,12 @@ print(sid.polarity_scores("I love this product"))
 
 ### Pastikan paket yang hilang diinstal permanen ke venv (jika belum):
 ```powershell
-python -m pip install --upgrade pandas numpy scipy scikit-learn matplotlib seaborn nltk ipywidgets notebook qtconsole widgetsnbextension jupyter jupyterlab ipykernel openpyxl xlrd xlsxwriter plotly requests beautifulsoup4 lxml joblib tqdm pyarrow
+python -m pip install --upgrade pandas numpy scipy scikit-learn matplotlib seaborn nltk ipywidgets notebook qtconsole widgetsnbextension jupyter jupyterlab ipykernel openpyxl xlrd xlsxwriter plotly requests beautifulsoup4 lxml joblib tqdm
 jupyter nbextension enable --py widgetsnbextension --sys-prefix
 python -m pip freeze > requirements.txt
 ```
+**Catatan:**  
+Jangan install pyarrow jika venv kamu Python 3.14 (belum tersedia wheel). Jika perlu, ganti ke Python 3.12 dan ulangi install pyarrow.
 
 ### Verifikasi SSL CA (kalau sebelumnya ada error terkait SSL_CERT_FILE):
 ```powershell

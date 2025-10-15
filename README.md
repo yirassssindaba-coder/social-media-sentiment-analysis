@@ -147,7 +147,9 @@ Jika kamu tidak ingin membuatnya permanen, hapus baris SetEnvironmentVariable da
 ---
 
 ## 9) Reinstall / perbaiki Jupyter & pasang semua paket core yang hilang (permanen di venv)
-**Solusi error:** Jika setelah cek dengan:
+
+**Solusi error:**  
+Jika setelah cek dengan:
 ```powershell
 python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
 ```
@@ -247,4 +249,54 @@ python -m jupyter lab --debug
 
 ---
 
-Jika salah satu langkah mengeluarkan error, salin seluruh output error langkah tersebut dan tempelkan di sini. Saya akan bantu perbaiki langkah spesifiknya agar JupyterLab berjalan bersih dan perubahan yang diperlukan bersifat permanen untuk proyekmu.
+## Verifikasi akhir setelah setup selesai
+
+**Jika JupyterLab sudah terbuka dan UI Launcher muncul, lakukan pemeriksaan berikut untuk memastikan setup sudah benar dan kernel venv aktif:**
+
+### Cek versi & kernel terdaftar:
+```powershell
+python --version
+jupyter --version
+jupyter kernelspec list
+```
+
+### Cek paket Jupyter core yang sebelumnya tidak terpasang:
+```powershell
+python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
+```
+
+### Tes runtime sederhana di notebook/JupyterLab (jalankan di cell notebook):
+```python
+import pandas as pd
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+print('pandas', pd.__version__)
+nltk.download('vader_lexicon', quiet=True)
+sid = SentimentIntensityAnalyzer()
+print(sid.polarity_scores("I love this product"))
+```
+**Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.**
+
+### Pastikan paket yang hilang diinstal permanen ke venv (jika belum):
+```powershell
+python -m pip install --upgrade pandas nltk
+python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+python -m pip freeze > requirements.txt
+```
+
+### Verifikasi SSL CA (kalau sebelumnya ada error terkait SSL_CERT_FILE):
+```powershell
+# cek session
+$env:SSL_CERT_FILE
+# cek user env (permanen)
+[Environment]::GetEnvironmentVariable('SSL_CERT_FILE','User')
+# cek file ada
+Test-Path (python -c "import certifi; print(certifi.where())")
+```
+Jika SSL_CERT_FILE menunjuk file yang tidak ada, set ke certifi atau hapus var User sebagaimana didiskusikan di atas.
+
+---
+
+**Jika semua pemeriksaan di atas OK, maka setupmu sudah lengkap dan "permanen" untuk proyek ini — paket terpasang di venv dan kernel terdaftar untuk user. Kirim hasil output dari langkah 1–3 (khususnya output import/test cell) dan saya konfirmasi semuanya bersih atau bantu betulkan bila ada error kecil.**

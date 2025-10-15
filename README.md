@@ -7,7 +7,7 @@ Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, da
 ---
 
 ## Catatan umum
-- Buka PowerShell biasa (Run as Administrator hanya jika saya tandai).
+- Buka PowerShell biasa (Run as Administrator hanya bila saya tandai).
 - Jangan paste semuanya sekaligus — jalankan blok 1 → 2 → 3 … dst.
 - Banyak perintah mengasumsikan venv berada di root proyek (.\venv). Jika struktur berbeda, sesuaikan path.
 - Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan [Environment]::SetEnvironmentVariable(...,'User') membuatnya permanen untuk user.
@@ -16,6 +16,8 @@ Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, da
 
 ## 0) Lokasi aman (mulai di sini)
 C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis
+
+> Petunjuk: buka PowerShell (bukan Administrator kecuali dicatat), pindah ke path di atas, lalu jalankan tiap blok perintah di bawah secara berurutan. Jalankan satu blok, pastikan tidak error, lalu lanjut ke blok berikutnya.
 
 ---
 
@@ -102,8 +104,7 @@ Test-Path .\venv\Scripts\python.exe
 Get-ExecutionPolicy -List
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 ```
-
-(You may be prompted to confirm; answer `Y`.)
+(You may be prompted; answer `Y`.)
 
 ---
 
@@ -124,59 +125,42 @@ python -m pip --version
 
 ## 8) Perbaiki env var sertifikat (SSL_CERT_FILE) — permanen untuk User (direkomendasikan)
 ```powershell
-# install certifi ke venv (persistent inside this venv)
+# install certifi ke venv
 python -m pip install --upgrade certifi
 
-# dapatkan path dan set untuk session
+# dapatkan path CA bundle certifi dan set untuk session
 $cert = & python -c "import certifi; print(certifi.where())"
 $env:SSL_CERT_FILE = $cert
 Write-Host "Using SSL_CERT_FILE (session) = $env:SSL_CERT_FILE"
 
-# set permanen untuk User (makes it persistent across new shells)
+# set permanen untuk User agar berlaku di shell baru / Jupyter server baru
 [Environment]::SetEnvironmentVariable('SSL_CERT_FILE',$cert,'User')
 Write-Host "SSL_CERT_FILE set permanently for User to: $cert"
 
 # cek env var terkait
 Get-ChildItem Env: | Where-Object Name -match 'CERT|SSL|REQUESTS|CURL|COMPOSER|PHP' | Format-Table Name,Value -AutoSize
 ```
-
-Jika kamu tidak ingin membuatnya permanen, hapus last line and keep only the session setting.
+Jika kamu tidak ingin membuatnya permanen, hapus baris SetEnvironmentVariable dan cukup gunakan session setting.
 
 ---
 
-## 9) Reinstall / perbaiki Jupyter & launchers di venv (tulis ulang console_scripts) — persistent in venv
+## 9) Reinstall / perbaiki Jupyter & pasang semua paket core yang hilang (permanen di venv)
+Semua perintah berikut menginstal ke venv aktif sehingga perubahan bersifat permanen untuk environment proyek ini (sampai venv dihapus).
+
 ```powershell
+# upgrade pip/build tools
 python -m pip install --upgrade pip setuptools wheel
 
-# reinstall jupyter core packages & ipykernel so launchers point to this venv's python
+# reinstall jupyter core & ipykernel (rewrite console_scripts)
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 
-# verify jupyter launchers in venv
-Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
+# install packages yang belum terpasang sebelumnya (ipywidgets, notebook, qtconsole) dan widget support
+python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
 
-# if any corrupted wrapper caused 'Unable to create process' errors, remove and reinstall
-Remove-Item .\venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
-Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
-Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
-
-# reinstall to rewrite wrappers correctly
-python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
-```
-
-> Semua paket yang diinstall di atas berada di dalam venv sehingga menjadi permanen untuk proyek ini sampai venv dihapus.
-
----
-
-## 9a) Pasang paket Jupyter core yang belum terinstall (ipywidgets, notebook, qtconsole) — persistent in venv
-```powershell
-# install missing Jupyter core packages
-python -m pip install --upgrade ipywidgets notebook qtconsole
-
-# (optional) classic notebook widget support
-python -m pip install --upgrade widgetsnbextension
+# enable widgets extension for classic notebook within this venv
 jupyter nbextension enable --py widgetsnbextension --sys-prefix
 
-# verifikasi impor & versi
+# verify imports & versions (one line per check)
 python -c "import ipywidgets; print('ipywidgets', getattr(ipywidgets,'__version__','n/a'))"
 python -c "import notebook; print('notebook', getattr(notebook,'__version__','n/a'))"
 python -c "import qtconsole; print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
@@ -184,9 +168,18 @@ python -c "import jupyterlab; print('jupyterlab', getattr(jupyterlab,'__version_
 
 # show jupyter core summary
 jupyter --version
+
+# verify launcher executables in venv
+Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
+
+# if any corrupted wrapper caused 'Unable to create process' earlier, remove and reinstall to rewrite them
+Remove-Item .\venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
+Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
+Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
+python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 ```
 
-Expected (example): jupyterlab 4.4.9, IPython 9.6.0, ipykernel 6.30.1, plus the newly installed ipywidgets/notebook/qtconsole.
+> Catatan: semua paket di atas dipasang ke dalam venv sehingga bersifat permanen untuk proyek ini (kecuali kamu menghapus venv).
 
 ---
 

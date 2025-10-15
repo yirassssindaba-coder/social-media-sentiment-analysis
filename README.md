@@ -125,11 +125,37 @@ python -m pip --version
 
 ---
 
-## 8) Perbaiki env var sertifikat (SSL_CERT_FILE) — permanen untuk User (direkomendasikan)
-```powershell
-# install certifi ke venv
-python -m pip install --upgrade certifi
+## 8) Install semua module utama untuk data science, Jupyter, analisis sentimen, dan web scraping
 
+```powershell
+# Install seluruh module penting ke venv (pastikan venv aktif!)
+python -m pip install --upgrade pip setuptools wheel
+
+python -m pip install --upgrade certifi `
+  pandas numpy scipy scikit-learn matplotlib seaborn `
+  nltk `
+  ipywidgets notebook qtconsole widgetsnbextension `
+  jupyter jupyterlab ipykernel `
+  openpyxl xlrd xlsxwriter `
+  plotly `
+  requests beautifulsoup4 lxml `
+  joblib tqdm `
+  pyarrow
+
+# Enable widgets extension for classic notebook
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+
+# Download resource NLTK 'vader_lexicon' agar SentimentIntensityAnalyzer siap pakai
+python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
+
+# Freeze requirements agar environment tercatat
+python -m pip freeze > requirements.txt
+```
+
+---
+
+## 9) Perbaiki env var sertifikat (SSL_CERT_FILE) — permanen untuk User (direkomendasikan)
+```powershell
 # dapatkan path CA bundle certifi dan set untuk session
 $cert = & python -c "import certifi; print(certifi.where())"
 $env:SSL_CERT_FILE = $cert
@@ -146,53 +172,9 @@ Jika kamu tidak ingin membuatnya permanen, hapus baris SetEnvironmentVariable da
 
 ---
 
-## 9) Reinstall / perbaiki Jupyter & pasang semua paket core yang hilang (permanen di venv)
-
-**Solusi error:**  
-Jika setelah cek dengan:
-```powershell
-python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
-```
-muncul error `ModuleNotFoundError: No module named 'ipywidgets'`, jalankan blok berikut (pastikan venv aktif):
+## 10) Reinstall / perbaiki Jupyter & pasang ulang launcher jika error (permanen di venv)
 
 ```powershell
-# Pastikan di root proyek dan venv aktif
-python --version
-where python
-
-# Install 3 paket penting ke venv
-python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
-
-# Enable widgets extension (untuk classic notebook)
-jupyter nbextension enable --py widgetsnbextension --sys-prefix
-
-# Verifikasi install & versi
-python -c "import ipywidgets, notebook, qtconsole; print('ipywidgets', getattr(ipywidgets,'__version__','n/a')); print('notebook', getattr(notebook,'__version__','n/a')); print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
-```
-
-**Langkah penuh install Jupyter dan dependensi:**
-```powershell
-# upgrade pip/build tools
-python -m pip install --upgrade pip setuptools wheel
-
-# reinstall jupyter core & ipykernel (rewrite console_scripts)
-python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
-
-# install packages yang belum terpasang sebelumnya (ipywidgets, notebook, qtconsole) dan widget support
-python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
-
-# enable widgets extension for classic notebook within this venv
-jupyter nbextension enable --py widgetsnbextension --sys-prefix
-
-# verify imports & versions (one line per check)
-python -c "import ipywidgets; print('ipywidgets', getattr(ipywidgets,'__version__','n/a'))"
-python -c "import notebook; print('notebook', getattr(notebook,'__version__','n/a'))"
-python -c "import qtconsole; print('qtconsole', getattr(qtconsole,'__version__','n/a'))"
-python -c "import jupyterlab; print('jupyterlab', getattr(jupyterlab,'__version__','n/a'))"
-
-# show jupyter core summary
-jupyter --version
-
 # verify launcher executables in venv
 Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
 
@@ -203,25 +185,15 @@ Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyCont
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 ```
 
-> Catatan: semua paket di atas dipasang ke dalam venv sehingga bersifat permanen untuk proyek ini (kecuali kamu menghapus venv).
-
 ---
 
-## 10) Daftarkan kernel ipykernel untuk venv (persisted for user)
+## 11) Daftarkan kernel ipykernel untuk venv (persisted for user)
 ```powershell
 python -m ipykernel install --user --name "social_media_sentiment" --display-name "Python (social-media-sentiment)"
 jupyter kernelspec list
 ```
 
 Kernel ini akan muncul di Jupyter UI untuk user kamu sampai kamu uninstall kernelspec.
-
----
-
-## 11) (Opsional) Freeze requirements (persistent file)
-```powershell
-python -m pip freeze > .\requirements.txt
-Get-Content .\requirements.txt -TotalCount 30
-```
 
 ---
 
@@ -280,8 +252,7 @@ print(sid.polarity_scores("I love this product"))
 
 ### Pastikan paket yang hilang diinstal permanen ke venv (jika belum):
 ```powershell
-python -m pip install --upgrade pandas nltk
-python -m pip install --upgrade ipywidgets notebook qtconsole widgetsnbextension
+python -m pip install --upgrade pandas numpy scipy scikit-learn matplotlib seaborn nltk ipywidgets notebook qtconsole widgetsnbextension jupyter jupyterlab ipykernel openpyxl xlrd xlsxwriter plotly requests beautifulsoup4 lxml joblib tqdm pyarrow
 jupyter nbextension enable --py widgetsnbextension --sys-prefix
 python -m pip freeze > requirements.txt
 ```

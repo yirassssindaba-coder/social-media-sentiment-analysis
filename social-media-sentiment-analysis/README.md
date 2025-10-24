@@ -1,6 +1,28 @@
+```text
+# social-media-sentiment-analysis
+
+Analisis sentimen sederhana dari data media sosial (demo). Termasuk skrip, notebook, dan instruksi menjalankan environment.
+
+Quick start (PowerShell):
+1. Buat/aktifkan virtual env:
+   py -3 -m venv venv
+   .\venv\Scripts\Activate.ps1
+2. Install dependencies:
+   python -m pip install --upgrade pip setuptools wheel
+   python -m pip install -r requirements.txt
+3. Jalankan demo script:
+   python .\src\main.py
+4. Jalankan JupyterLab (opsional):
+   python -m jupyter lab
+
+Catatan:
+- Jangan commit folder venv/ atau data/raw/ ke GitHub. Gunakan .gitignore.
+- Jika ingin push ke GitHub, gunakan SSH key atau Personal Access Token (PAT).
+```
+
 # Perbaikan & Instalasi Permanen Jupyter untuk proyek
 
-Jalankan semua blok PowerShell ini dari folder proyek:  
+Jalankan semua blok PowerShell ini dari folder proyek:
 `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
 Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, dan langkah untuk membuat beberapa pengaturan menjadi permanen (User-level).  
@@ -14,12 +36,14 @@ Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan
 - Banyak perintah mengasumsikan venv berada di root proyek (`.\venv`). Jika struktur berbeda, sesuaikan path.
 - Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan `[Environment]::SetEnvironmentVariable(...,'User')` membuatnya permanen untuk user.
 
+> Penting: beberapa contoh Git yang sering ditulis untuk Bash menggunakan operator seperti `||` atau tanda `<` untuk placeholder — operator tersebut tidak berlaku di PowerShell. README ini menggunakan sintaks PowerShell yang kompatibel.
+
 ---
 
 ## 0) Lokasi aman (mulai di sini)
 `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
-> **Petunjuk:** buka PowerShell (bukan Administrator kecuali dicatat), pindah ke path di atas, lalu jalankan tiap blok perintah di bawah secara berurutan. Jalankan satu blok, pastikan tidak error, lalu lanjut ke blok berikutnya.
+Petunjuk: buka PowerShell (bukan Administrator kecuali dicatat), pindah ke path di atas, lalu jalankan tiap blok perintah di bawah secara berurutan. Jalankan satu blok, pastikan tidak error, lalu lanjut ke blok berikutnya.
 
 ---
 
@@ -127,8 +151,9 @@ python -m pip --version
 
 ## 8) Install semua module utama untuk data science, Jupyter, analisis sentimen, dan web scraping
 
+Pastikan venv aktif sebelum menjalankan blok ini.
+
 ```powershell
-# Install seluruh module penting ke venv (pastikan venv aktif!)
 python -m pip install --upgrade pip setuptools wheel
 
 python -m pip install --upgrade certifi `
@@ -140,7 +165,9 @@ python -m pip install --upgrade certifi `
   plotly `
   requests beautifulsoup4 lxml `
   joblib tqdm
-# pyarrow (hanya untuk Python <=3.12, tidak support Python 3.14)
+
+# catatan: jangan install pyarrow di Python 3.14 (belum tersedia wheel)
+# jika butuh pyarrow, gunakan Python 3.11/3.12 dan jalankan:
 # python -m pip install --upgrade pyarrow
 
 # Enable widgets extension for classic notebook
@@ -152,9 +179,10 @@ python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
 # Freeze requirements agar environment tercatat
 python -m pip freeze > requirements.txt
 ```
-**Catatan:**  
-Jika kamu memakai Python 3.14, **jangan install pyarrow** (belum tersedia wheel, akan gagal build seperti error sebelumnya).  
-Jika butuh pyarrow, **gunakan Python 3.11 atau 3.12 untuk venv**, lalu install `pyarrow`.
+
+Catatan:
+- Jika kamu memakai Python 3.14, jangan install pyarrow (akan gagal build).
+- Jika perlu pyarrow, buat venv dengan Python 3.11/3.12.
 
 ---
 
@@ -177,15 +205,15 @@ Jika kamu tidak ingin membuatnya permanen, hapus baris SetEnvironmentVariable da
 ---
 
 ## 10) Reinstall / perbaiki Jupyter & pasang ulang launcher jika error (permanen di venv)
-
 ```powershell
 # verify launcher executables in venv
 Get-ChildItem .\venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
 
-# if any corrupted wrapper caused 'Unable to create process' earlier, remove and reinstall to rewrite them
+# Jika ada wrapper yang korup, hapus dan reinstall untuk menulis ulang executable launcher
 Remove-Item .\venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
 Remove-Item .\venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
 Remove-Item .\venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
+
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 ```
 
@@ -227,7 +255,7 @@ python -m jupyter lab --debug
 
 ## Verifikasi akhir setelah setup selesai
 
-**Jika JupyterLab sudah terbuka dan UI Launcher muncul, lakukan pemeriksaan berikut untuk memastikan setup sudah benar dan kernel venv aktif:**
+Jika JupyterLab sudah terbuka dan UI Launcher muncul, lakukan pemeriksaan berikut untuk memastikan setup sudah benar dan kernel venv aktif.
 
 ### Cek versi & kernel terdaftar:
 ```powershell
@@ -252,28 +280,56 @@ nltk.download('vader_lexicon', quiet=True)
 sid = SentimentIntensityAnalyzer()
 print(sid.polarity_scores("I love this product"))
 ```
-**Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.**
 
-### Pastikan paket yang hilang diinstal permanen ke venv (jika belum):
-```powershell
-python -m pip install --upgrade pandas numpy scipy scikit-learn matplotlib seaborn nltk ipywidgets notebook qtconsole widgetsnbextension jupyter jupyterlab ipykernel openpyxl xlrd xlsxwriter plotly requests beautifulsoup4 lxml joblib tqdm
-jupyter nbextension enable --py widgetsnbextension --sys-prefix
-python -m pip freeze > requirements.txt
-```
-**Catatan:**  
-Jangan install pyarrow jika venv kamu Python 3.14 (belum tersedia wheel). Jika perlu, ganti ke Python 3.12 dan ulangi install pyarrow.
-
-### Verifikasi SSL CA (kalau sebelumnya ada error terkait SSL_CERT_FILE):
-```powershell
-# cek session
-$env:SSL_CERT_FILE
-# cek user env (permanen)
-[Environment]::GetEnvironmentVariable('SSL_CERT_FILE','User')
-# cek file ada
-Test-Path (python -c "import certifi; print(certifi.where())")
-```
-Jika SSL_CERT_FILE menunjuk file yang tidak ada, set ke certifi atau hapus var User sebagaimana didiskusikan di atas.
+Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
 ---
 
-**Jika semua pemeriksaan di atas OK, maka setupmu sudah lengkap dan "permanen" untuk proyek ini — paket terpasang di venv dan kernel terdaftar untuk user. Kirim hasil output dari langkah 1–3 (khususnya output import/test cell) dan saya konfirmasi semuanya bersih atau bantu betulkan bila ada error kecil.**
+## Git (contoh PowerShell-safe) — contoh alur yang kompatibel dengan PowerShell
+Gunakan contoh ini jika perlu menyelaraskan branch lokal dengan origin dan menggabungkan branch fitur:
+
+```powershell
+# pastikan origin URL sudah benar
+git remote set-url origin https://github.com/your-user/python-project.git
+git remote -v
+
+# ambil update remote
+git fetch origin
+
+# coba checkout main, kalau gagal buat branch main baru yang melacak origin/main jika ada
+git checkout main
+if ($LASTEXITCODE -ne 0) {
+  if (git ls-remote --heads origin main) {
+    git checkout -B main origin/main
+  } else {
+    git checkout -B main
+  }
+}
+
+# merge branch fitur (jika perlu izinkan unrelated histories)
+git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
+
+# jika ada konflik, selesaikan file, lalu:
+# contoh menambahkan file yang sudah diperbaiki:
+# ganti path\to\file.ext dengan nama file yang benar
+git add path\to\file.ext path\to\another-file.ext
+git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment into main"
+
+# push ke remote
+git push origin main
+```
+
+Catatan:
+- Jangan gunakan `||` di PowerShell. Gunakan `if ($LASTEXITCODE -ne 0) { ... }` atau `try { } catch { }`.
+- Jangan gunakan tanda `<file>` karena PowerShell menganggap `<` sebagai operator. Gunakan contoh path/file nyata.
+
+---
+
+## Troubleshooting singkat
+- Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.
+- Jika jupyter launcher menampilkan error "Unable to create process", lakukan langkah 10 (hapus wrapper exe dan reinstall).
+- Jika notebook tidak memakai kernel venv, pastikan kamu sudah menjalankan step 11 untuk install ipykernel --user dan restart JupyterLab.
+
+---
+
+Jika sudah ingin saya commit/perbarui file README.md ini di repo dan buat pull request, konfirmasi saja — saya akan membuat PR dengan konten di atas. Jika ada penyesuaian teks (mis. owner repo pada contoh git remote), sebutkan dan saya sesuaikan sebelum membuat PR.

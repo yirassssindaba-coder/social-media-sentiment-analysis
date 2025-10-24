@@ -22,7 +22,7 @@ Catatan:
 
 # Perbaikan & Instalasi Permanen Jupyter untuk proyek
 
-Jalankan semua blok PowerShell ini dari folder proyek:
+Jalankan semua blok PowerShell ini dari folder proyek:  
 `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
 Saya telah menggabungkan pengecekan, perbaikan, pemasangan paket yang hilang, dan langkah untuk membuat beberapa pengaturan menjadi permanen (User-level).  
@@ -36,7 +36,7 @@ Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan
 - Banyak perintah mengasumsikan venv berada di root proyek (`.\venv`). Jika struktur berbeda, sesuaikan path.
 - Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan `[Environment]::SetEnvironmentVariable(...,'User')` membuatnya permanen untuk user.
 
-> Penting: beberapa contoh Git yang sering ditulis untuk Bash menggunakan operator seperti `||` atau tanda `<` untuk placeholder — operator tersebut tidak berlaku di PowerShell. README ini menggunakan sintaks PowerShell yang kompatibel.
+> Penting: beberapa contoh Git yang sering ditulis untuk Bash menggunakan operator seperti `||` atau tanda `<` untuk placeholder — operator tersebut tidak berlaku di PowerShell. README ini menggunakan sintaks PowerShell yang kompatibel. Namun saya juga mempertahankan urutan perintah Git yang Anda gunakan di terminal dan menyediakan versi PowerShell-safe yang setara sehingga alur tetap sama.
 
 ---
 
@@ -285,43 +285,106 @@ Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to
 
 ---
 
-## Git (contoh PowerShell-safe) — contoh alur yang kompatibel dengan PowerShell
-Gunakan contoh ini jika perlu menyelaraskan branch lokal dengan origin dan menggabungkan branch fitur:
+## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
+Di bawah ini saya menuliskan ulang urutan perintah Git yang ada pada transcript Anda, tapi mengganti operator Bash yang tidak valid di PowerShell dengan bentuk yang setara agar tetap mengikuti alur yang sama.
 
+1) Mulai di lokasi project (sama seperti transcript):
 ```powershell
-# pastikan origin URL sudah benar
-git remote set-url origin https://github.com/your-user/python-project.git
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+Get-Location
+git status
+git branch --show-current
 git remote -v
+```
 
-# ambil update remote
+2) Ubah remote URL (sama seperti transcript):
+```powershell
+git remote set-url origin https://github.com/yirassssindaba-coder/python-project.git
+git remote -v
+```
+
+3) Ambil update dari remote:
+```powershell
 git fetch origin
+```
 
-# coba checkout main, kalau gagal buat branch main baru yang melacak origin/main jika ada
+4) Jika ingin memastikan ada branch main lokal, gunakan PowerShell-safe flow (mengganti `||`):
+```powershell
+# coba checkout main; jika gagal buat branch main lokal
 git checkout main
 if ($LASTEXITCODE -ne 0) {
+  # kalau origin/main ada, buat main yang melacak origin/main, kalau tidak buat branch main baru
   if (git ls-remote --heads origin main) {
     git checkout -B main origin/main
   } else {
     git checkout -B main
   }
 }
+```
 
-# merge branch fitur (jika perlu izinkan unrelated histories)
+5) Jika `git pull origin main` menolak karena unrelated histories, gunakan opsi allow-unrelated-histories saat merge:
+```powershell
+# Ini akan fetch lalu merge origin/main ke main (jika sudah ada main)
+git pull origin main --allow-unrelated-histories
+# atau, setelah memastikan branch 'main' lokal ada:
 git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
+```
 
-# jika ada konflik, selesaikan file, lalu:
-# contoh menambahkan file yang sudah diperbaiki:
-# ganti path\to\file.ext dengan nama file yang benar
+6) Menambahkan file / commit — jangan gunakan `<` placeholder karena PowerShell menginterpretasikannya:
+```powershell
+# tambahkan semua perubahan di folder project
+git add .
+
+# atau, tambahkan file spesifik (ganti path\to\file.ext)
 git add path\to\file.ext path\to\another-file.ext
-git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment into main"
 
-# push ke remote
+# commit perubahan
+git commit -m "feat: add/update social-media-sentiment-analysis project"
+```
+
+7) Jika venv sempat ter-stage/commit, hentikan trackingnya (PowerShell-safe):
+```powershell
+# hentikan tracking venv jika ter-track
+try {
+  git rm -r --cached "social-media-sentiment-analysis/venv"
+} catch {
+  Write-Host "venv not tracked or not present"
+}
+
+# pastikan .gitignore berisi entry venv
+if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/venv/" -Quiet)) {
+  Add-Content .\.gitignore "social-media-sentiment-analysis/venv/"
+  git add .gitignore
+  git commit -m "chore: add venv to .gitignore and stop tracking venv"
+}
+```
+
+8) Push ke remote:
+```powershell
+# pastikan branch main ada lokal lalu push
 git push origin main
 ```
 
-Catatan:
-- Jangan gunakan `||` di PowerShell. Gunakan `if ($LASTEXITCODE -ne 0) { ... }` atau `try { } catch { }`.
-- Jangan gunakan tanda `<file>` karena PowerShell menganggap `<` sebagai operator. Gunakan contoh path/file nyata.
+9) Contoh alur merge dan resolusi konflik (PowerShell-safe):
+```powershell
+# pastikan kamu berada di main
+git checkout main
+
+# merge branch fitur (bisa menghasilkan konflik)
+git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
+
+# jika ada konflik, selesaikan file, lalu:
+git add path\to\fixed-file.ext
+git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment into main"
+
+# push hasil merge
+git push origin main
+```
+
+Catatan penting:
+- Jangan gunakan operator `||` di PowerShell. Gunakan cek $LASTEXITCODE atau try/catch.
+- Jangan tulis `git add <file>` — gunakan nama file nyata (contoh: `git add src\main.py`).
+- Beberapa perintah (mis. `git pull origin main`) mungkin menolak unrelated histories — solusinya adalah merge dengan opsi `--allow-unrelated-histories` apabila kamu memang ingin menggabungkan dua riwayat terpisah.
 
 ---
 
@@ -329,7 +392,8 @@ Catatan:
 - Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.
 - Jika jupyter launcher menampilkan error "Unable to create process", lakukan langkah 10 (hapus wrapper exe dan reinstall).
 - Jika notebook tidak memakai kernel venv, pastikan kamu sudah menjalankan step 11 untuk install ipykernel --user dan restart JupyterLab.
+- Jika git menolak push karena "src refspec main does not match any", pastikan branch lokal 'main' memang ada: `git branch --show-current` dan buat/lacak origin/main bila perlu.
 
 ---
 
-Jika sudah ingin saya commit/perbarui file README.md ini di repo dan buat pull request, konfirmasi saja — saya akan membuat PR dengan konten di atas. Jika ada penyesuaian teks (mis. owner repo pada contoh git remote), sebutkan dan saya sesuaikan sebelum membuat PR.
+Jika sudah siap saya commit/perbarui file README.md ini di repo dan buat pull request (atau update PR yang sudah ada), konfirmasi saja. Jika ada bagian git yang Anda ingin persis sama persis dengan output terminal (termasuk operator `||`), beri tahu — tetapi untuk keamanan PowerShell saya merekomendasikan versi yang saya tulis di atas agar perintah bisa dieksekusi langsung di PowerShell.

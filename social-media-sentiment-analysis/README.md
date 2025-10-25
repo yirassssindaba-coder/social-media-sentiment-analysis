@@ -36,7 +36,7 @@ Jalankan blok per blok (satu kali paste per blok). Jika sebuah blok mengeluarkan
 - Banyak perintah mengasumsikan venv berada di root proyek (`.\venv`). Jika struktur berbeda, sesuaikan path.
 - Instalasi paket via pip di venv bersifat "permanen" untuk venv (tetap terpasang sampai venv dihapus). Mengatur SSL_CERT_FILE dengan `[Environment]::SetEnvironmentVariable(...,'User')` membuatnya permanen untuk user.
 
-> Penting: beberapa contoh Git yang sering ditulis untuk Bash menggunakan operator seperti `||` atau tanda `<` untuk placeholder — operator tersebut tidak berlaku di PowerShell. README ini menggunakan sintaks PowerShell yang kompatibel. Namun saya juga mempertahankan urutan perintah Git yang Anda gunakan di terminal dan menyediakan versi PowerShell-safe yang setara sehingga alur tetap sama.
+> Penting: beberapa contoh Git yang sering ditulis untuk Bash menggunakan operator seperti `||` atau tanda `<` untuk placeholder — operator tersebut tidak berlaku di PowerShell. README ini menggunakan sintaks PowerShell yang kompatibel. Saya juga mempertahankan alur perintah Git yang Anda gunakan, namun dituliskan dalam bentuk PowerShell‑safe agar bisa dieksekusi langsung.
 
 ---
 
@@ -283,10 +283,10 @@ print(sid.polarity_scores("I love this product"))
 
 Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
-```markdown
-## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
+---
 
-Di bawah ini saya menuliskan ulang urutan perintah Git yang ada pada transcript Anda, tapi mengganti operator Bash yang tidak valid di PowerShell dengan bentuk yang setara agar tetap mengikuti alur yang sama.
+## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
+Di bawah ini saya menuliskan ulang urutan perintah Git yang ada pada transcript Anda, tetap mempertahankan alur yang sama namun ditulis agar kompatibel dengan PowerShell.
 
 1) Mulai di lokasi project (sama seperti transcript):
 ```powershell
@@ -382,12 +382,12 @@ git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment 
 git push origin main
 ```
 
-### (Tambahan) Ganti nama notebook "Untitled.ipynb" → "social-media-sentiment-analysis.ipynb"
+### Rename notebook: ubah nama Untitled.ipynb → social-media-sentiment-analysis.ipynb
 Jika Anda ingin mengganti nama file notebook yang sebelumnya bernama `Untitled.ipynb` menjadi `social-media-sentiment-analysis.ipynb`, gunakan perintah `git mv` (PowerShell-safe). Sesuaikan path dengan lokasi file di repo.
 
 Contoh (ganti path\to\ sesuai struktur Anda):
 ```powershell
-# contoh path relatif dari root repo
+# contoh path relatif dari root repo; ganti sumber jika berbeda
 git mv "social-media-sentiment-analysis\src\Untitled.ipynb" "social-media-sentiment-analysis\src\social-media-sentiment-analysis.ipynb"
 
 # verifikasi perubahan
@@ -407,12 +407,6 @@ Catatan:
 
 ---
 
-Catatan penting:
-- Jangan gunakan operator `||` di PowerShell. Gunakan cek `$LASTEXITCODE` atau `try/catch`.
-- Jangan tulis `git add <file>` — gunakan nama file nyata (contoh: `git add src\main.py`).
-- Beberapa perintah (mis. `git pull origin main`) mungkin menolak unrelated histories — solusinya adalah merge dengan opsi `--allow-unrelated-histories` apabila kamu memang ingin menggabungkan dua riwayat terpisah.
-```
-
 ## Troubleshooting singkat
 - Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.
 - Jika jupyter launcher menampilkan error "Unable to create process", lakukan langkah 10 (hapus wrapper exe dan reinstall).
@@ -421,4 +415,5 @@ Catatan penting:
 
 ---
 
-Jika sudah siap saya commit/perbarui file README.md ini di repo dan buat pull request (atau update PR yang sudah ada), konfirmasi saja. Jika ada bagian git yang Anda ingin persis sama persis dengan output terminal (termasuk operator `||`), beri tahu — tetapi untuk keamanan PowerShell saya merekomendasikan versi yang saya tulis di atas agar perintah bisa dieksekusi langsung di PowerShell.
+Jika sudah siap saya commit/perbarui file README.md ini di repo dan buat pull request (atau update PR yang sudah ada), konfirmasi saja. Jika ada bagian yang perlu penyesuaian nama repo/URL atau path, sebutkan dan saya sesuaikan sebelum membuat PR.
+```

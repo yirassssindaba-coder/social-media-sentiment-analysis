@@ -284,12 +284,17 @@ print(sid.polarity_scores("I love this product"))
 Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
 ## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
-Panduan ini sudah diperbaiki untuk menangani kondisi yang Anda temui:
-- Menangani file "Untracked" (mis. Untitled1.ipynb dan rename_notebooks.py).
-- Menyediakan opsi untuk: rename file dengan git (git mv), menjalankan skrip rename otomatis lalu commit, atau mengabaikan skrip lokal.
-- Perintah PowerShell-safe (menghindari operator shell non-PowerShell, memakai Write-Host, $LASTEXITCODE, dsb).
 
-1) Mulai di lokasi project:
+Panduan ini sudah diperbaiki untuk kondisi yang Anda temui:
+- Hanya satu opsi untuk mengganti nama notebook: gunakan git mv (recommended).
+- Perintah PowerShell-safe (tanpa operator shell non-PowerShell seperti `||`).
+- Langkah untuk menghapus file Untitled*.ipynb yang tersisa, menambahkan script Python yang Anda berikan, dan menghentikan tracking venv dengan cara PowerShell yang benar.
+
+Catatan singkat sebelum mulai:
+- Jalankan semua perintah dari root repository, mis. `C:\Users\ASUS\Desktop\python-project`.
+- Jika menjalankan dari Jupyter, jalankan skrip Python sebagai proses shell: `!python ...`.
+
+1) Masuk ke root repo dan verifikasi status
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
 Get-Location
@@ -298,18 +303,18 @@ git branch --show-current
 git remote -v
 ```
 
-2) Ubah remote URL (jika perlu):
+2) Set / verifikasi remote URL (jika perlu)
 ```powershell
 git remote set-url origin https://github.com/yirassssindaba-coder/python-project.git
 git remote -v
 ```
 
-3) Ambil update dari remote:
+3) Ambil update dari remote
 ```powershell
 git fetch origin
 ```
 
-4) Pastikan branch main lokal ada (PowerShell-safe):
+4) Pastikan branch `main` lokal ada dan up-to-date (PowerShell-safe)
 ```powershell
 git checkout main
 if ($LASTEXITCODE -ne 0) {
@@ -319,105 +324,157 @@ if ($LASTEXITCODE -ne 0) {
     git checkout -B main
   }
 }
+
+# Fast-forward / pull changes
+git pull origin main
 ```
 
-5) Jika perlu merge dengan unrelated histories:
+5) Stage tracked changes & commit (jika ada perubahan tracked yang ingin Anda commit)
 ```powershell
-git pull origin main --allow-unrelated-histories
-# atau merge branch lain:
-git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
-```
-
-6) Menambahkan file / commit:
-```powershell
-# Stage semua perubahan tracked & deleted
 git add -A
-
-# Commit
-git commit -m "feat: add/update social-media-sentiment-analysis project"
-```
-
-7) Menangani untracked files (pilih salah satu opsi di bawah sesuai kebutuhan)
-
-Opsi A — Anda ingin mengganti nama notebook Untitled1.ipynb menjadi social-media-sentiment-analysis.ipynb (recommended untuk mempertahankan history):
-```powershell
-# dari root repo
-git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
-
-# verifikasi & commit
-git status
-git commit -m "chore: rename Untitled1.ipynb -> social-media-sentiment-analysis.ipynb"
-git push origin main
-```
-
-Opsi B — Anda ingin menggunakan skrip otomatis rename_notebooks.py (jika skrip ada dan Anda mau apply otomatis ke banyak folder):
-```powershell
-# Dry-run dulu untuk memastikan hasil
-python .\rename_notebooks.py
-
-# Jika rencana oke, jalankan --apply
-python .\rename_notebooks.py --apply
-
-# Setelah apply, stage & commit semua perubahan
-git add -A
-git commit -m "chore: rename Untitled notebooks to folder-name.ipynb"
-git push origin main
-```
-Catatan: bila menjalankan skrip dari Jupyter, jalankan sebagai proses shell: `!python rename_notebooks.py` atau jalankan dari terminal PowerShell.
-
-Opsi C — Anda tidak ingin memasukkan skrip rename_notebooks.py ke repo (simpan lokal saja)
-```powershell
-# Hapus file dari working tree (jika Anda sudah tidak butuh file)
-Remove-Item ".\social-media-sentiment-analysis\rename_notebooks.py" -Force
-
-# atau: masukkan skrip ke .gitignore supaya tidak muncul lagi
-if (-not (Test-Path .gitignore)) { New-Item .gitignore -ItemType File -Force }
-if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/rename_notebooks.py" -Quiet)) {
-  Add-Content .\.gitignore "social-media-sentiment-analysis/rename_notebooks.py"
-  git add .gitignore
-  git commit -m "chore: ignore local rename_notebooks helper script"
-  git push origin main
+# Hanya commit bila ada perubahan staged
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+  git commit -m "feat: add/update social-media-sentiment-analysis project"
+} else {
+  Write-Host "No tracked changes to commit."
 }
 ```
 
-Opsi D — Hapus untracked files yang benar-benar tidak diinginkan (gunakan hati-hati)
+6) (SINGLE OPTION) Rename notebook: ubah Untitled1.ipynb → social-media-sentiment-analysis.ipynb menggunakan git mv
+- Gunakan ini bila file tersebut ada di folder `social-media-sentiment-analysis`.
 ```powershell
-# Preview apa saja yang akan dihapus (aman):
-git clean -n -d
-
-# Jika sudah yakin, hapus untracked files & directories:
-git clean -f -d
+# Pastikan berada di root repo
+if (Test-Path "social-media-sentiment-analysis\Untitled1.ipynb") {
+  git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
+  git status --porcelain
+  git commit -m "chore: rename Untitled1.ipynb -> social-media-sentiment-analysis.ipynb"
+  git push origin main
+} else {
+  Write-Host "File 'social-media-sentiment-analysis\\Untitled1.ipynb' tidak ditemukan. Lewati langkah rename."
+}
 ```
 
-8) Hentikan tracking venv (jika venv pernah ikut ter-track)
+7) Tambahkan file Python dengan kode contoh (opsional — sesuai isi yang Anda berikan)
+- Ini membuat file `social_media_sentiment_analysis.py` di folder `social-media-sentiment-analysis` berisi kode yang Anda sertakan.
 ```powershell
-# stop tracking venv jika ter-track
-git rm -r --cached "social-media-sentiment-analysis/venv" -f 2>$null || Write-Host "venv not tracked or not present"
+$code = @'
+import pandas as pd
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-# tambahkan ke .gitignore jika belum ada
-if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/venv/" -Quiet)) {
-  Add-Content .\.gitignore "social-media-sentiment-analysis/venv/"
+print("pandas", pd.__version__)
+nltk.download("vader_lexicon", quiet=True)
+sid = SentimentIntensityAnalyzer()
+print(sid.polarity_scores("I love this product"))
+'@
+
+# Buat folder jika perlu dan tulis file
+if (-not (Test-Path ".\social-media-sentiment-analysis")) {
+  New-Item -ItemType Directory -Path ".\social-media-sentiment-analysis" | Out-Null
+}
+Set-Content -Path ".\social-media-sentiment-analysis\social_media_sentiment_analysis.py" -Value $code -Encoding UTF8
+
+# Stage, commit, push
+git add ".\social-media-sentiment-analysis\social_media_sentiment_analysis.py"
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+  git commit -m "feat: add social_media_sentiment_analysis example script"
+  git push origin main
+} else {
+  Write-Host "No changes to commit for the example script."
+}
+```
+
+8) Hapus semua file Untitled*.ipynb yang tersisa (aman: list dulu, lalu hapus)
+- Preview file yang akan dihapus:
+```powershell
+Get-ChildItem -Path . -Recurse -Filter "Untitled*.ipynb" | Select-Object FullName
+```
+- Jika Anda setuju untuk menghapus semua hasil di atas, jalankan ini untuk menghapus (git-aware):
+```powershell
+# Hapus tracked/untracked Untitled*.ipynb
+Get-ChildItem -Path . -Recurse -Filter "Untitled*.ipynb" | ForEach-Object {
+  $full = $_.FullName
+  # ubah ke path relatif dari repo root
+  $rel = $full.Replace((Get-Location).Path + "\", "")
+  # git rm --ignore-unmatch menghapus dari index jika ter-track, tidak error jika tidak ter-track
+  git rm --ignore-unmatch "$rel"
+  # hapus file lokal (jika masih ada)
+  if (Test-Path $full) {
+    Remove-Item $full -Force -ErrorAction SilentlyContinue
+  }
+  Write-Host "Removed: $rel"
+}
+
+# Commit & push bila ada perubahan
+git add -A
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+  git commit -m "chore: remove leftover Untitled notebooks"
+  git push origin main
+} else {
+  Write-Host "No changes to commit after removing Untitled files."
+}
+```
+
+9) Hentikan tracking `venv` (PowerShell-safe) jika venv sempat ter-track
+```powershell
+$venvPath = "social-media-sentiment-analysis/venv"
+
+if (Test-Path $venvPath) {
+  git rm -r --cached $venvPath -f
+  Write-Host "Stopped tracking $venvPath (if it was tracked)."
+} else {
+  Write-Host "Path $venvPath not present; skip git rm."
+}
+
+# Pastikan .gitignore ada dan berisi entry venv
+if (-not (Test-Path .gitignore)) { New-Item .gitignore -ItemType File -Force | Out-Null }
+if (-not (Select-String -Path .\.gitignore -Pattern [regex]::Escape($venvPath) -Quiet)) {
+  Add-Content .\.gitignore $venvPath
   git add .gitignore
   git commit -m "chore: add venv to .gitignore and stop tracking venv"
   git push origin main
+} else {
+  Write-Host ".gitignore already contains an entry for $venvPath"
 }
 ```
 
-9) Push ke remote:
+10) Hapus atau ignore skrip lokal `rename_notebooks.py` (jika tidak ingin disimpan di repo)
 ```powershell
-git push origin main
+# Jika Anda ingin menghapus file dari repo/working tree:
+git rm --ignore-unmatch "social-media-sentiment-analysis/rename_notebooks.py"
+git add -A
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+  git commit -m "chore: remove local rename_notebooks helper"
+  git push origin main
+} else {
+  Write-Host "rename_notebooks.py was not tracked or already removed."
+}
+
+# Jika Anda ingin menyimpan file lokal tapi tidak memasukkannya ke repo, tambahkan ke .gitignore:
+if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/rename_notebooks.py" -Quiet)) {
+  Add-Content .\.gitignore "social-media-sentiment-analysis/rename_notebooks.py"
+  git add .gitignore
+  git commit -m "chore: ignore local rename_notebooks helper"
+  git push origin main
+} else {
+  Write-Host ".gitignore already ignores rename_notebooks.py"
+}
 ```
 
-10) Contoh merge dan resolusi konflik:
+11) Push akhir & verifikasi
 ```powershell
-git checkout main
-git merge feat/social-media-sentiment -m "Merge feat/social-media-sentiment into main"
-# jika ada konflik, selesaikan file lalu:
-git add path\to\fixed-file
-git commit -m "fix: resolve merge conflicts"
 git push origin main
+git status
+git branch --show-current
+git remote -v
 ```
 
+12) Troubleshooting singkat
+- Warning "git: 'credential-manager-core' is not a git command." hanya peringatan credential helper; push tetap berhasil. Untuk hilangkan, instal Git Credential Manager: https://aka.ms/gcm/latest
+- Jika Jupyter menambahkan argumen kernel menyebabkan skrip Python error, jalankan skrip sebagai proses shell: `!python rename_notebooks.py` atau dari PowerShell `python .\rename_notebooks.py`.
+- Skrip rename otomatis sebelumnya dibuat untuk kenyamanan; panduan ini memprioritaskan perintah `git mv` (Opsi tunggal) agar riwayat tetap bersih dan perubahan mudah diaudit.
+
+Jika Anda mau saya buatkan satu file PowerShell (.ps1) yang menjalankan langkah-langkah di atas secara interaktif (dengan konfirmasi sebelum menghapus), beri tahu dan saya siapkan.  
 11) Catatan teknis & troubleshooting singkat
 - "Untracked files" artinya file ada di working dir tapi belum `git add`. Pilih apakah ingin commit, ignore, atau hapus.
 - Jika Anda melihat file `rename_notebooks.py` muncul sebagai untracked dan Anda ingin menjalankannya tetapi tidak menyimpan ke repo, gunakan Opsi C (tambahkan ke .gitignore atau hapus file).

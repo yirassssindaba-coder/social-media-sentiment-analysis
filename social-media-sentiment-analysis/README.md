@@ -283,9 +283,9 @@ print(sid.polarity_scores("I love this product"))
 
 Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
----
-
+```markdown
 ## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
+
 Di bawah ini saya menuliskan ulang urutan perintah Git yang ada pada transcript Anda, tapi mengganti operator Bash yang tidak valid di PowerShell dengan bentuk yang setara agar tetap mengikuti alur yang sama.
 
 1) Mulai di lokasi project (sama seperti transcript):
@@ -322,10 +322,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 ```
 
-5) Jika `git pull origin main` menolak karena unrelated histories, gunakan opsi allow-unrelated-histories saat merge:
+5) Jika `git pull origin main` menolak karena unrelated histories, gunakan opsi `--allow-unrelated-histories` saat merge:
 ```powershell
 # Ini akan fetch lalu merge origin/main ke main (jika sudah ada main)
 git pull origin main --allow-unrelated-histories
+
 # atau, setelah memastikan branch 'main' lokal ada:
 git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
 ```
@@ -381,12 +382,36 @@ git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment 
 git push origin main
 ```
 
-Catatan penting:
-- Jangan gunakan operator `||` di PowerShell. Gunakan cek $LASTEXITCODE atau try/catch.
-- Jangan tulis `git add <file>` — gunakan nama file nyata (contoh: `git add src\main.py`).
-- Beberapa perintah (mis. `git pull origin main`) mungkin menolak unrelated histories — solusinya adalah merge dengan opsi `--allow-unrelated-histories` apabila kamu memang ingin menggabungkan dua riwayat terpisah.
+### (Tambahan) Ganti nama notebook "Untitled.ipynb" → "social-media-sentiment-analysis.ipynb"
+Jika Anda ingin mengganti nama file notebook yang sebelumnya bernama `Untitled.ipynb` menjadi `social-media-sentiment-analysis.ipynb`, gunakan perintah `git mv` (PowerShell-safe). Sesuaikan path dengan lokasi file di repo.
+
+Contoh (ganti path\to\ sesuai struktur Anda):
+```powershell
+# contoh path relatif dari root repo
+git mv "social-media-sentiment-analysis\src\Untitled.ipynb" "social-media-sentiment-analysis\src\social-media-sentiment-analysis.ipynb"
+
+# verifikasi perubahan
+git status
+
+# commit perubahan rename
+git commit -m "chore: rename Untitled.ipynb -> social-media-sentiment-analysis.ipynb"
+
+# push rename ke remote
+git push origin main
+```
+
+Catatan:
+- Jika file di repo sudah bernama lain (mis. `analysis.ipynb`), sesuaikan nama sumber pada `git mv`.
+- Jika Anda hanya ingin mengganti nama lokal tanpa memengaruhi remote, cukup ubah nama file di explorer/editor, lalu commit/commit + push seperti biasa.
+- Gunakan tanda kutip pada path yang mengandung spasi.
 
 ---
+
+Catatan penting:
+- Jangan gunakan operator `||` di PowerShell. Gunakan cek `$LASTEXITCODE` atau `try/catch`.
+- Jangan tulis `git add <file>` — gunakan nama file nyata (contoh: `git add src\main.py`).
+- Beberapa perintah (mis. `git pull origin main`) mungkin menolak unrelated histories — solusinya adalah merge dengan opsi `--allow-unrelated-histories` apabila kamu memang ingin menggabungkan dua riwayat terpisah.
+```
 
 ## Troubleshooting singkat
 - Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.

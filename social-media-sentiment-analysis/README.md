@@ -283,12 +283,11 @@ print(sid.polarity_scores("I love this product"))
 
 Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
----
-
 ## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
-Di bawah ini saya menuliskan ulang urutan perintah Git yang ada pada transcript Anda, tetap mempertahankan alur yang sama namun ditulis agar kompatibel dengan PowerShell.
 
-1) Mulai di lokasi project (sama seperti transcript):
+Di bawah ini urutan perintah Git yang disesuaikan agar kompatibel dengan PowerShell.
+
+1) Mulai di lokasi project:
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
 Get-Location
@@ -297,7 +296,7 @@ git branch --show-current
 git remote -v
 ```
 
-2) Ubah remote URL (sama seperti transcript):
+2) Ubah remote URL (jika perlu):
 ```powershell
 git remote set-url origin https://github.com/yirassssindaba-coder/python-project.git
 git remote -v
@@ -308,12 +307,10 @@ git remote -v
 git fetch origin
 ```
 
-4) Jika ingin memastikan ada branch main lokal, gunakan PowerShell-safe flow (mengganti `||`):
+4) Pastikan branch main lokal ada (PowerShell-safe):
 ```powershell
-# coba checkout main; jika gagal buat branch main lokal
 git checkout main
 if ($LASTEXITCODE -ne 0) {
-  # kalau origin/main ada, buat main yang melacak origin/main, kalau tidak buat branch main baru
   if (git ls-remote --heads origin main) {
     git checkout -B main origin/main
   } else {
@@ -322,37 +319,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 ```
 
-5) Jika `git pull origin main` menolak karena unrelated histories, gunakan opsi `--allow-unrelated-histories` saat merge:
+5) Jika perlu merge dengan unrelated histories:
 ```powershell
-# Ini akan fetch lalu merge origin/main ke main (jika sudah ada main)
 git pull origin main --allow-unrelated-histories
-
-# atau, setelah memastikan branch 'main' lokal ada:
+# atau merge branch lain:
 git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
 ```
 
-6) Menambahkan file / commit — jangan gunakan `<` placeholder karena PowerShell menginterpretasikannya:
+6) Menambahkan file / commit:
 ```powershell
-# tambahkan semua perubahan di folder project
 git add .
-
-# atau, tambahkan file spesifik (ganti path\to\file.ext)
-git add path\to\file.ext path\to\another-file.ext
-
-# commit perubahan
 git commit -m "feat: add/update social-media-sentiment-analysis project"
 ```
 
-7) Jika venv sempat ter-stage/commit, hentikan trackingnya (PowerShell-safe):
+7) Hentikan tracking venv jika ter-track:
 ```powershell
-# hentikan tracking venv jika ter-track
-try {
-  git rm -r --cached "social-media-sentiment-analysis/venv"
-} catch {
-  Write-Host "venv not tracked or not present"
-}
+git rm -r --cached "social-media-sentiment-analysis/venv" -f 2>$null || Write-Host "venv not tracked or not present"
 
-# pastikan .gitignore berisi entry venv
 if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/venv/" -Quiet)) {
   Add-Content .\.gitignore "social-media-sentiment-analysis/venv/"
   git add .gitignore
@@ -362,50 +345,32 @@ if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-anal
 
 8) Push ke remote:
 ```powershell
-# pastikan branch main ada lokal lalu push
 git push origin main
 ```
 
-9) Contoh alur merge dan resolusi konflik (PowerShell-safe):
+9) Contoh merge dan resolusi konflik:
 ```powershell
-# pastikan kamu berada di main
 git checkout main
-
-# merge branch fitur (bisa menghasilkan konflik)
-git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat/social-media-sentiment into main"
-
-# jika ada konflik, selesaikan file, lalu:
-git add path\to\fixed-file.ext
-git commit -m "fix: resolve merge conflicts merging feat/social-media-sentiment into main"
-
-# push hasil merge
+git merge feat/social-media-sentiment -m "Merge feat/social-media-sentiment into main"
+# jika ada konflik: selesaikan file lalu:
+git add path\to\fixed-file
+git commit -m "fix: resolve merge conflicts"
 git push origin main
 ```
 
-### Rename notebook: ubah nama Untitled.ipynb → social-media-sentiment-analysis.ipynb
-Jika Anda ingin mengganti nama file notebook yang sebelumnya bernama `Untitled.ipynb` menjadi `social-media-sentiment-analysis.ipynb`, gunakan perintah `git mv` (PowerShell-safe). Sesuaikan path dengan lokasi file di repo.
-
-Contoh (ganti path\to\ sesuai struktur Anda):
+10) Rename notebook: ubah Untitled*.ipynb → social-media-sentiment-analysis.ipynb
+Jika Anda ingin mengganti nama notebook di folder social-media-sentiment-analysis, gunakan git mv (PowerShell-safe). Contoh:
 ```powershell
-# contoh path relatif dari root repo; ganti sumber jika berbeda
-git mv "social-media-sentiment-analysis\src\Untitled.ipynb" "social-media-sentiment-analysis\src\social-media-sentiment-analysis.ipynb"
-
-# verifikasi perubahan
+git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
 git status
-
-# commit perubahan rename
-git commit -m "chore: rename Untitled.ipynb -> social-media-sentiment-analysis.ipynb"
-
-# push rename ke remote
+git commit -m "chore: rename notebook to social-media-sentiment-analysis.ipynb"
 git push origin main
 ```
 
 Catatan:
-- Jika file di repo sudah bernama lain (mis. `analysis.ipynb`), sesuaikan nama sumber pada `git mv`.
-- Jika Anda hanya ingin mengganti nama lokal tanpa memengaruhi remote, cukup ubah nama file di explorer/editor, lalu commit/commit + push seperti biasa.
-- Gunakan tanda kutip pada path yang mengandung spasi.
-
----
+- Saya sengaja mengabaikan file Untitled yang berada langsung di root repo (untuk mencegah pembuatan root.ipynb).
+- Jika Anda ingin skrip otomatis mengganti juga file di root, beritahu saya agar saya tambahkan opsi khusus.
+- Jika mau, saya bisa commit skrip rename_notebooks.py ke branch baru dan buatkan PR untuk Anda.
 
 ## Troubleshooting singkat
 - Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.

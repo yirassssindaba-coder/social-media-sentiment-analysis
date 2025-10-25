@@ -417,24 +417,52 @@ if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
 
 9) Hentikan tracking `venv` (PowerShell-safe) jika venv sempat ter-track
 ```powershell
+# jalankan dari root repo: C:\Users\ASUS\Desktop\python-project
 $venvPath = "social-media-sentiment-analysis/venv"
+$gitignorePath = ".\.gitignore"
 
-if (Test-Path $venvPath) {
-  git rm -r --cached $venvPath -f
-  Write-Host "Stopped tracking $venvPath (if it was tracked)."
-} else {
-  Write-Host "Path $venvPath not present; skip git rm."
+# 1) Stop tracking venv tanpa error bila tidak ter-track
+git rm -r --cached --ignore-unmatch "$venvPath"
+Write-Host "Attempted to stop tracking '$venvPath' (no error if it wasn't tracked)."
+
+# 2) Jika ada file "gitignore" (tanpa titik) akibat kesalahan, pindah/rename ke .gitignore
+if (Test-Path ".\gitignore" -PathType Leaf -ErrorAction SilentlyContinue) {
+  # jika .gitignore sudah ada, hapus file tanpa titik; kalau belum, rename
+  if (-not (Test-Path $gitignorePath)) {
+    Move-Item -Path ".\gitignore" -Destination $gitignorePath -Force
+    Write-Host "Renamed 'gitignore' -> '.gitignore'"
+  } else {
+    # .gitignore sudah ada, file 'gitignore' yang salah bisa dihapus
+    Remove-Item ".\gitignore" -Force
+    Write-Host "Removed stray 'gitignore' (since .gitignore already exists)."
+  }
 }
 
-# Pastikan .gitignore ada dan berisi entry venv
-if (-not (Test-Path .gitignore)) { New-Item .gitignore -ItemType File -Force | Out-Null }
-if (-not (Select-String -Path .\.gitignore -Pattern [regex]::Escape($venvPath) -Quiet)) {
-  Add-Content .\.gitignore $venvPath
-  git add .gitignore
-  git commit -m "chore: add venv to .gitignore and stop tracking venv"
-  git push origin main
+# 3) Pastikan .gitignore ada
+if (-not (Test-Path $gitignorePath)) {
+  New-Item -Path $gitignorePath -ItemType File -Force | Out-Null
+  Write-Host "Created .gitignore"
+}
+
+# 4) Periksa apakah .gitignore sudah berisi entry venv (cek literal string)
+$escaped = [regex]::Escape($venvPath)
+$found = Select-String -Path $gitignorePath -Pattern $escaped -SimpleMatch -Quiet
+
+if (-not $found) {
+  Add-Content -Path $gitignorePath -Value $venvPath
+  Write-Host "Added '$venvPath' to .gitignore"
+  git add $gitignorePath
+
+  # Commit only if there are staged changes
+  if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+    git commit -m "chore: add venv to .gitignore and stop tracking venv"
+    git push origin main
+    Write-Host "Committed and pushed .gitignore update."
+  } else {
+    Write-Host "No changes staged after updating .gitignore."
+  }
 } else {
-  Write-Host ".gitignore already contains an entry for $venvPath"
+  Write-Host ".gitignore already contains an entry for '$venvPath'"
 }
 ```
 

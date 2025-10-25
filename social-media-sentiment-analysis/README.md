@@ -284,8 +284,10 @@ print(sid.polarity_scores("I love this product"))
 Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to‑end.
 
 ## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
-
-Di bawah ini urutan perintah Git yang disesuaikan agar kompatibel dengan PowerShell.
+Panduan ini sudah diperbaiki untuk menangani kondisi yang Anda temui:
+- Menangani file "Untracked" (mis. Untitled1.ipynb dan rename_notebooks.py).
+- Menyediakan opsi untuk: rename file dengan git (git mv), menjalankan skrip rename otomatis lalu commit, atau mengabaikan skrip lokal.
+- Perintah PowerShell-safe (menghindari operator shell non-PowerShell, memakai Write-Host, $LASTEXITCODE, dsb).
 
 1) Mulai di lokasi project:
 ```powershell
@@ -328,50 +330,104 @@ git merge feat/social-media-sentiment --allow-unrelated-histories -m "Merge feat
 
 6) Menambahkan file / commit:
 ```powershell
-git add .
+# Stage semua perubahan tracked & deleted
+git add -A
+
+# Commit
 git commit -m "feat: add/update social-media-sentiment-analysis project"
 ```
 
-7) Hentikan tracking venv jika ter-track:
+7) Menangani untracked files (pilih salah satu opsi di bawah sesuai kebutuhan)
+
+Opsi A — Anda ingin mengganti nama notebook Untitled1.ipynb menjadi social-media-sentiment-analysis.ipynb (recommended untuk mempertahankan history):
 ```powershell
+# dari root repo
+git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
+
+# verifikasi & commit
+git status
+git commit -m "chore: rename Untitled1.ipynb -> social-media-sentiment-analysis.ipynb"
+git push origin main
+```
+
+Opsi B — Anda ingin menggunakan skrip otomatis rename_notebooks.py (jika skrip ada dan Anda mau apply otomatis ke banyak folder):
+```powershell
+# Dry-run dulu untuk memastikan hasil
+python .\rename_notebooks.py
+
+# Jika rencana oke, jalankan --apply
+python .\rename_notebooks.py --apply
+
+# Setelah apply, stage & commit semua perubahan
+git add -A
+git commit -m "chore: rename Untitled notebooks to folder-name.ipynb"
+git push origin main
+```
+Catatan: bila menjalankan skrip dari Jupyter, jalankan sebagai proses shell: `!python rename_notebooks.py` atau jalankan dari terminal PowerShell.
+
+Opsi C — Anda tidak ingin memasukkan skrip rename_notebooks.py ke repo (simpan lokal saja)
+```powershell
+# Hapus file dari working tree (jika Anda sudah tidak butuh file)
+Remove-Item ".\social-media-sentiment-analysis\rename_notebooks.py" -Force
+
+# atau: masukkan skrip ke .gitignore supaya tidak muncul lagi
+if (-not (Test-Path .gitignore)) { New-Item .gitignore -ItemType File -Force }
+if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/rename_notebooks.py" -Quiet)) {
+  Add-Content .\.gitignore "social-media-sentiment-analysis/rename_notebooks.py"
+  git add .gitignore
+  git commit -m "chore: ignore local rename_notebooks helper script"
+  git push origin main
+}
+```
+
+Opsi D — Hapus untracked files yang benar-benar tidak diinginkan (gunakan hati-hati)
+```powershell
+# Preview apa saja yang akan dihapus (aman):
+git clean -n -d
+
+# Jika sudah yakin, hapus untracked files & directories:
+git clean -f -d
+```
+
+8) Hentikan tracking venv (jika venv pernah ikut ter-track)
+```powershell
+# stop tracking venv jika ter-track
 git rm -r --cached "social-media-sentiment-analysis/venv" -f 2>$null || Write-Host "venv not tracked or not present"
 
+# tambahkan ke .gitignore jika belum ada
 if (-not (Select-String -Path .\.gitignore -Pattern "social-media-sentiment-analysis/venv/" -Quiet)) {
   Add-Content .\.gitignore "social-media-sentiment-analysis/venv/"
   git add .gitignore
   git commit -m "chore: add venv to .gitignore and stop tracking venv"
+  git push origin main
 }
 ```
 
-8) Push ke remote:
+9) Push ke remote:
 ```powershell
 git push origin main
 ```
 
-9) Contoh merge dan resolusi konflik:
+10) Contoh merge dan resolusi konflik:
 ```powershell
 git checkout main
 git merge feat/social-media-sentiment -m "Merge feat/social-media-sentiment into main"
-# jika ada konflik: selesaikan file lalu:
+# jika ada konflik, selesaikan file lalu:
 git add path\to\fixed-file
 git commit -m "fix: resolve merge conflicts"
 git push origin main
 ```
 
-10) Rename notebook: ubah Untitled*.ipynb → social-media-sentiment-analysis.ipynb
-Jika Anda ingin mengganti nama notebook di folder social-media-sentiment-analysis, gunakan git mv (PowerShell-safe). Contoh:
-```powershell
-git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
-git status
-git commit -m "chore: rename notebook to social-media-sentiment-analysis.ipynb"
-git push origin main
-```
+11) Catatan teknis & troubleshooting singkat
+- "Untracked files" artinya file ada di working dir tapi belum `git add`. Pilih apakah ingin commit, ignore, atau hapus.
+- Jika Anda melihat file `rename_notebooks.py` muncul sebagai untracked dan Anda ingin menjalankannya tetapi tidak menyimpan ke repo, gunakan Opsi C (tambahkan ke .gitignore atau hapus file).
+- Saya sengaja mengabaikan (di skrip rename) file Untitled yang berada langsung di root repo agar tidak membuat file root.ipynb. Jika memang ingin mengganti juga file root, jalankan rename manual atau beri tahu untuk menambahkan opsi `--include-root`.
+- Jika terjadi SystemExit di Jupyter saat menjalankan skrip, jalankan skrip sebagai proses shell dari notebook: `!python rename_notebooks.py` (skrip sudah disesuaikan untuk mengabaikan argumen kernel).
+- Selalu lakukan dry-run sebelum melakukan perubahan massal: `python rename_notebooks.py` (tanpa --apply) untuk melihat rencana perubahan.
 
-Catatan:
-- Saya sengaja mengabaikan file Untitled yang berada langsung di root repo (untuk mencegah pembuatan root.ipynb).
-- Jika Anda ingin skrip otomatis mengganti juga file di root, beritahu saya agar saya tambahkan opsi khusus.
-- Jika mau, saya bisa commit skrip rename_notebooks.py ke branch baru dan buatkan PR untuk Anda.
-
+Jika Anda mau, saya bisa:
+- Beri satu perintah lengkap PowerShell yang siap dijalankan untuk kasus spesifik Anda (mis. rename Untitled1.ipynb di folder social-media-sentiment-analysis dan commit), atau
+- Siapkan branch & commit otomatis berisi rename (saya butuh akses/petunjuk apakah saya boleh membuat PR).
 ## Troubleshooting singkat
 - Jika muncul error terkait SSL atau sertifikat ketika pip/jupyter melakukan koneksi HTTPS, pastikan langkah 9 (SSL_CERT_FILE) sudah dijalankan dan menunjuk ke file certifi yang valid.
 - Jika jupyter launcher menampilkan error "Unable to create process", lakukan langkah 10 (hapus wrapper exe dan reinstall).

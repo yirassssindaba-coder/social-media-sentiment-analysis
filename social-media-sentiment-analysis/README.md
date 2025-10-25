@@ -285,15 +285,15 @@ Jika cell di atas mengembalikan skor tanpa error, kernel sudah berjalan end‑to
 
 ## Git — urutan perintah yang Anda gunakan (PowerShell-safe)
 
-Panduan ini sudah disederhanakan dan diperbaiki untuk kondisi Anda:
-- Hanya 1 cara untuk mengganti/menjaga notebook: gunakan git mv / overwrite satu file notebook bernama social-media-sentiment-analysis.ipynb.
-- Perintah PowerShell-safe (tanpa operator shell non-PowerShell seperti `||`).
-- Memperbaiki penanganan .gitignore / venv dan menghapus file Untitled* yang tersisa.
-- Menyertakan instruksi cara mengganti isi notebook menjadi satu code cell sesuai permintaan Anda.
+Tujuan akhir: di folder `social-media-sentiment-analysis` hanya ada 1 notebook:
+`social-media-sentiment-analysis.ipynb`. Hapus duplikat (.py / .ipynb lainnya),
+buat/overwrite notebook final dengan satu code cell (kode Anda), dan jalankan notebook
+agar outputs tersimpan di file (supaya preview GitHub menampilkan output).
 
-Catatan singkat sebelum mulai:
-- Jalankan semua perintah dari root repository, mis. `C:\Users\ASUS\Desktop\python-project`.
-- Jika menjalankan dari Jupyter, jalankan skrip Python sebagai proses shell: `!python ...` atau jalankan dari PowerShell langsung.
+Catatan umum:
+- Jalankan perintah dari root repository, mis. `C:\Users\ASUS\Desktop\python-project`.
+- Semua perintah di bawah ditulis agar kompatibel dengan PowerShell (tanpa `||`).
+- Skrip pembuatan notebook memakai nbformat; eksekusi notebook memakai nbconvert.
 
 1) Masuk ke root repo dan verifikasi status
 ```powershell
@@ -304,19 +304,15 @@ git branch --show-current
 git remote -v
 ```
 
-2) Set / verifikasi remote URL (jika perlu)
+2) Pastikan remote benar (jika perlu)
 ```powershell
 git remote set-url origin https://github.com/yirassssindaba-coder/python-project.git
 git remote -v
 ```
 
-3) Ambil update dari remote
+3) Sinkronkan branch main
 ```powershell
 git fetch origin
-```
-
-4) Pastikan branch `main` lokal ada dan up-to-date (PowerShell-safe)
-```powershell
 git checkout main
 if ($LASTEXITCODE -ne 0) {
   if (git ls-remote --heads origin main) {
@@ -328,7 +324,7 @@ if ($LASTEXITCODE -ne 0) {
 git pull origin main
 ```
 
-5) Stage tracked changes & commit (jika ada perubahan tracked yang ingin Anda commit)
+4) Stage/commit tracked changes (jika ada)
 ```powershell
 git add -A
 if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
@@ -338,25 +334,33 @@ if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
 }
 ```
 
-6) (SINGLE OPTION) Pastikan hanya 1 notebook: rename / buat social-media-sentiment-analysis.ipynb
-- Tujuan: hanya ada satu notebook di folder `social-media-sentiment-analysis` bernama `social-media-sentiment-analysis.ipynb` dan isinya satu code-cell sesuai kode Anda.
-- Jika Anda hanya perlu mengganti nama satu file Untitled1.ipynb yang sudah ada ke nama final, jalankan:
+5) SINGLE OPTION — Pastikan hanya 1 notebook: rename atau buat `social-media-sentiment-analysis.ipynb`
+- Jika Anda hanya ingin mengganti nama satu file Untitled (jika ada), gunakan `git mv`:
 ```powershell
-# dari root repo
 if (Test-Path "social-media-sentiment-analysis\Untitled1.ipynb") {
   git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
-  git status --porcelain
   git commit -m "chore: rename Untitled1.ipynb -> social-media-sentiment-analysis.ipynb"
   git push origin main
 } else {
-  Write-Host "File 'social-media-sentiment-analysis\\Untitled1.ipynb' tidak ditemukan. Jika Anda ingin membuat notebook baru, lihat langkah pembuatan di bawah."
+  Write-Host "No Untitled1.ipynb found. Use step 6 to create/overwrite the notebook."
 }
 ```
 
-7) Jika Anda ingin membuat/overwrite notebook agar isinya tepat seperti yang Anda minta
-- Buat script kecil yang menulis notebook (menggunakan nbformat). Simpan sebagai create_notebook.py, jalankan, lalu commit.
+6) Buat / overwrite notebook final (isi satu code cell sesuai permintaan)
+- Gunakan helper Python untuk menulis notebook valid (nbformat). Ini membuat
+  `social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb` dengan isi:
+
+  import pandas as pd
+  import nltk
+  from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+  print("pandas", pd.__version__)
+  nltk.download("vader_lexicon", quiet=True)
+  sid = SentimentIntensityAnalyzer()
+  print(sid.polarity_scores("I love this product"))
+
 ```powershell
-# Buat file create_notebook.py (jalankan di PowerShell)
+# create_notebook.py: tulis notebook satu cell (PowerShell: membuat & menjalankan file Python helper)
 $py = @'
 import nbformat as nbf
 nb = nbf.v4.new_notebook()
@@ -369,103 +373,124 @@ nltk.download(\"vader_lexicon\", quiet=True)
 sid = SentimentIntensityAnalyzer()
 print(sid.polarity_scores(\"I love this product\"))"""
 nb['cells'] = [nbf.v4.new_code_cell(code)]
-with open("social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb", "w", encoding="utf-8") as f:
+out_path = "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb"
+import os
+os.makedirs(os.path.dirname(out_path), exist_ok=True)
+with open(out_path, "w", encoding="utf-8") as f:
     nbf.write(nb, f)
-print("Notebook written: social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb")
+print("Notebook written:", out_path)
 '@
 
-# Pastikan folder ada
-if (-not (Test-Path ".\social-media-sentiment-analysis")) {
-  New-Item -ItemType Directory -Path ".\social-media-sentiment-analysis" | Out-Null
-}
-
-# Tulis script
 Set-Content -Path ".\create_notebook.py" -Value $py -Encoding UTF8
-
-# Jalankan script untuk membuat/overwrite notebook
 python .\create_notebook.py
 
 # Stage, commit, push the notebook
 git add "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb"
-git commit -m "chore: create social-media-sentiment-analysis.ipynb with requested contents"
+git commit -m "chore: create social-media-sentiment-analysis.ipynb with requested content"
 git push origin main
 
-# Hapus helper script jika tidak diperlukan
-Remove-Item .\create_notebook.py -Force
+# Optional: remove helper script if not needed
+Remove-Item .\create_notebook.py -Force -ErrorAction SilentlyContinue
 ```
 
-8) Hapus semua file Untitled*.ipynb ekstra (preview dulu, lalu hapus)
-- Preview file yang akan dihapus:
+7) Hapus file ganda / duplikat di folder `social-media-sentiment-analysis`
+- Periksa isi folder dulu, lalu hapus file yang tidak diinginkan. Contoh umum (sesuaikan bila berbeda):
+
 ```powershell
-Get-ChildItem -Path . -Recurse -Filter "Untitled*.ipynb" | Select-Object FullName
-```
-- Jika sudah OK, hapus tracked/untracked Untitled* (git-aware):
-```powershell
-Get-ChildItem -Path . -Recurse -Filter "Untitled*.ipynb" | ForEach-Object {
-  $full = $_.FullName
-  $rel = $full.Replace((Get-Location).Path + "\", "")
-  git rm --ignore-unmatch "$rel"
-  if (Test-Path $full) { Remove-Item $full -Force -ErrorAction SilentlyContinue }
-  Write-Host "Removed: $rel"
+# lihat daftar file di folder target
+Get-ChildItem -Path .\social-media-sentiment-analysis\ -File | Select-Object Name
+
+# contoh nama duplikat yang sering muncul (sesuaikan list bila perlu)
+$dupes = @(
+  "social-media-sentiment-analysis\social-media-sentiment-analysis.py",
+  "social-media-sentiment-analysis\social_media_sentiment_analysis.py",
+  "social-media-sentiment-analysis\Untitled.ipynb",
+  "social-media-sentiment-analysis\Untitled1.ipynb"
+)
+
+foreach ($f in $dupes) {
+  git rm --ignore-unmatch $f    # remove from index if tracked; no error if not
+  if (Test-Path $f) {
+    Remove-Item $f -Force -ErrorAction SilentlyContinue
+    Write-Host "Removed local file: $f"
+  } else {
+    Write-Host "No local file: $f"
+  }
 }
 
+# Commit deletions if any
 git add -A
 if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
-  git commit -m "chore: remove leftover Untitled notebooks"
+  git commit -m "chore: remove duplicate files in social-media-sentiment-analysis"
   git push origin main
 } else {
-  Write-Host "No changes to commit after removing Untitled files."
+  Write-Host "No duplicate files to remove/commit."
 }
 ```
 
-9) Hentikan tracking `venv` (PowerShell-safe) dan perbaiki .gitignore (dengan perilaku robust)
-- Potongan ini menghindari error jika venv tidak ter-track dan memperbaiki kasus file `gitignore` (tanpa titik) yang mungkin dibuat tidak sengaja.
+8) Eksekusi notebook agar outputs tersimpan di file (supaya GitHub preview menampilkan hasil)
+- Install jika perlu:
+```powershell
+python -m pip install --user nbformat nbconvert jupyter nltk
+```
+- Jalankan eksekusi (simpan outputs ke notebook file):
+```powershell
+jupyter nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
+```
+- Commit outputs yang berubah (jika ada):
+```powershell
+git add "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb"
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
+  git commit -m "chore: execute notebook and record outputs"
+  git push origin main
+} else {
+  Write-Host "No notebook output changes to commit."
+}
+```
+
+9) Perbaiki .gitignore dan hentikan tracking venv (PowerShell-safe)
 ```powershell
 $venvPath = "social-media-sentiment-analysis/venv"
 $gitignorePath = ".\.gitignore"
 
-# Stop tracking venv safely (no fatal error if not tracked)
-git rm -r --cached --ignore-unmatch "$venvPath"
-Write-Host "Attempted to stop tracking '$venvPath' (no error if it wasn't tracked)."
+# Stop tracking venv safely
+git rm -r --cached --ignore-unmatch $venvPath
+Write-Host "Attempted to stop tracking $venvPath."
 
-# If a stray 'gitignore' (without dot) exists, move or remove it appropriately
+# Fix stray 'gitignore' (without dot) if present
 if (Test-Path ".\gitignore" -PathType Leaf -ErrorAction SilentlyContinue) {
   if (-not (Test-Path $gitignorePath)) {
-    Move-Item -Path ".\gitignore" -Destination $gitignorePath -Force
+    Move-Item ".\gitignore" $gitignorePath -Force
     Write-Host "Renamed 'gitignore' -> '.gitignore'"
   } else {
     Remove-Item ".\gitignore" -Force
-    Write-Host "Removed stray 'gitignore' (since .gitignore already exists)."
+    Write-Host "Removed stray 'gitignore' (since .gitignore exists)."
   }
 }
 
-# Ensure .gitignore exists
+# Ensure .gitignore exists and contains venv entry
 if (-not (Test-Path $gitignorePath)) {
   New-Item -Path $gitignorePath -ItemType File -Force | Out-Null
-  Write-Host "Created .gitignore"
 }
 
-# Add venv path to .gitignore if not present
 $found = Select-String -Path $gitignorePath -Pattern $venvPath -SimpleMatch -Quiet
 if (-not $found) {
   Add-Content -Path $gitignorePath -Value $venvPath
-  Write-Host "Added '$venvPath' to .gitignore"
   git add $gitignorePath
   if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
     git commit -m "chore: add venv to .gitignore and stop tracking venv"
     git push origin main
-    Write-Host "Committed and pushed .gitignore update."
   } else {
-    Write-Host "No changes staged after updating .gitignore."
+    Write-Host "No .gitignore changes to commit."
   }
 } else {
-  Write-Host ".gitignore already contains an entry for '$venvPath'"
+  Write-Host ".gitignore already contains $venvPath"
 }
 ```
 
-10) Hapus atau ignore skrip lokal `rename_notebooks.py` (jika tidak ingin disimpan di repo)
+10) Hapus atau ignore skrip lokal `rename_notebooks.py` jika tidak ingin disimpan
 ```powershell
-# Remove from repo if tracked
+# Hapus dari repo jika ter-track
 git rm --ignore-unmatch "social-media-sentiment-analysis/rename_notebooks.py"
 git add -A
 if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
@@ -475,53 +500,40 @@ if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
   Write-Host "rename_notebooks.py was not tracked or already removed."
 }
 
-# If you prefer to keep it locally but not commit, add to .gitignore
+# Atau: tambahkan ke .gitignore agar tidak muncul lagi
 $entry = "social-media-sentiment-analysis/rename_notebooks.py"
 if (-not (Select-String -Path .\.gitignore -Pattern $entry -SimpleMatch -Quiet)) {
   Add-Content .\.gitignore $entry
   git add .gitignore
   git commit -m "chore: ignore local rename_notebooks helper"
   git push origin main
-} else {
-  Write-Host ".gitignore already ignores rename_notebooks.py"
 }
 ```
 
-11) Push akhir & verifikasi
+11) Verifikasi akhir
 ```powershell
-git push origin main
 git status
 git branch --show-current
 git remote -v
+Get-ChildItem -Path .\social-media-sentiment-analysis\ -File | Select-Object Name
 ```
 
-12) Troubleshooting singkat
-- Warning "git: 'credential-manager-core' is not a git command." hanya peringatan credential helper; push tetap berhasil. Untuk menghilangkan, instal Git Credential Manager: https://aka.ms/gcm/latest
-- Jika Jupyter menambahkan argumen kernel menyebabkan skrip Python error, jalankan skrip sebagai proses shell: `!python create_notebook.py` atau jalankan dari PowerShell `python .\create_notebook.py`.
-- Selalu preview sebelum menghapus dengan `Get-ChildItem ... | Select-Object FullName` dan lakukan dry-run.
-- Skrip "rename_notebooks.py" bersifat helper lokal — jika Anda tidak ingin memasukkannya di repo, hapus atau tambahkan ke .gitignore seperti di langkah 10.
-
---- 
-
-Tambahan: isi notebook yang diminta
-- Anda meminta agar file notebook final `social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb` hanya berisi satu code cell dengan kode ini:
-
-```python
-import pandas as pd
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-
-print("pandas", pd.__version__)
-nltk.download("vader_lexicon", quiet=True)
-sid = SentimentIntensityAnalyzer()
-print(sid.polarity_scores("I love this product"))
+12) Contoh output yang akan terlihat setelah notebook dijalankan
+- Versi pandas (contoh):
+```
+pandas 2.3.3
+```
+- Hasil skor VADER (contoh):
+```
+{'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
 ```
 
-- Gunakan langkah 7 di atas untuk membuat/overwrite notebook tersebut secara otomatis (create_notebook.py) atau buka Jupyter, buat satu code cell dengan isi di atas lalu Save As → social-media-sentiment-analysis.ipynb.
+Troubleshooting singkat
+- Jika `jupyter nbconvert --execute` gagal karena paket belum terpasang, jalankan:
+  `python -m pip install --user nbformat nbconvert jupyter nltk`
+- NLTK resource `vader_lexicon` akan diunduh saat notebook dieksekusi karena kode memanggil `nltk.download("vader_lexicon", quiet=True)`. Pastikan koneksi internet tersedia.
+- Pesan `git: 'credential-manager-core' is not a git command` hanya peringatan credential helper; push tetap dapat berhasil. Untuk menghapusnya, instal Git Credential Manager.
 
-Jika Anda setuju, saya bisa:
-- 1) Commit/perbarui README (file ini) di repo dan buat PR, atau
-- 2) Buat file PowerShell (.ps1) otomatis yang menjalankan langkah-langkah ini (dengan konfirmasi sebelum menghapus), lalu kirimkan kontennya agar Anda jalankan.
-
-Sebutkan mana yang diinginkan.  
-```
+Jika Anda mau, saya bisa:
+- Buat file PowerShell `.ps1` interaktif yang menjalankan langkah-langkah ini (menanyakan konfirmasi sebelum menghapus), atau
+- Commit dan buat PR yang memperbarui README/penjelasan ini di repo — beri saya konfirmasi.

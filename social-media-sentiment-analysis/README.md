@@ -1,36 +1,36 @@
 ```markdown
-# social-media-sentiment-analysis — Sample Data (clean & copyable)
+# social-media-sentiment-analysis — README (ringkas, PowerShell-safe)
 
 Deskripsi singkat
-- Project: Analisis Sentimen Media Sosial — demo pipeline minimal.
-- Tujuan README ini: jelaskan langkah dari "set lokasi" hingga "commit ke Git" secara PowerShell‑safe.
-- Hasil akhir yang diharapkan: folder `social-media-sentiment-analysis` berisi 1 notebook final
-  `social-media-sentiment-analysis.ipynb` (1 code cell) yang sudah dieksekusi sehingga GitHub preview menampilkan outputs.
+- Project demo: Analisis Sentimen Media Sosial (pipeline minimal + 1 notebook final).
+- Tujuan README ini: memberi langkah jelas dari setup environment, membuat sample data, menjalankan pipeline, membuat/menjalankan notebook final, sampai commit ke Git — semua PowerShell-safe.
+
+Catatan penting sebelum mulai
+- Jalankan perintah dari root repository (contoh): `C:\Users\ASUS\Desktop\python-project`
+- Gunakan virtual environment (rekomendasi: `.venv` di root).
+- Jangan paste blok Python multi-line langsung ke PowerShell prompt — simpan ke file `.py` lalu jalankan `python script.py`, atau masuk REPL `python` lalu paste.
+- Saat venv aktif, jangan gunakan `pip install --user` (akan error). Gunakan `python -m pip install ...`.
 
 Prasyarat
-- Jalankan perintah dari root repository (contoh): `C:\Users\ASUS\Desktop\python-project`
-- Python 3.8–3.12 direkomendasikan. Python 3.14 dapat digunakan tetapi beberapa paket mungkin tak kompatibel.
-- Git terpasang dan remote sudah dikonfigurasi.
-- Koneksi internet untuk pip install dan unduh resource NLTK.
+- Python 3.8 - 3.12 direkomendasikan (Python 3.14 mungkin kompatibel namun beberapa paket belum stabil).
+- Git, koneksi internet (paket & NLTK resource).
 
-Ringkasan file yang sebaiknya ada
-- social-media-sentiment-analysis/
-  - create_notebook.py
-  - create_sample_data.py
-  - data_collection.py (opsional)
-  - preprocess.py
-  - train_model.py
-  - evaluate.py
-  - visualize.py (opsional)
-  - requirements.txt
-  - social-media-sentiment-analysis.ipynb (final notebook — commit setelah dieksekusi)
-  - data/ (ignored)
-  - models/ (ignored kecuali model kecil ingin di-commit)
-  - figures/ (opsional)
-  - README.md (lokal folder, optional)
+Struktur file rekomendasi (folder `social-media-sentiment-analysis`)
+- create_notebook.py
+- create_sample_data.py
+- data_collection.py (opsional)
+- preprocess.py
+- train_model.py
+- evaluate.py
+- visualize.py (opsional)
+- requirements.txt
+- social-media-sentiment-analysis.ipynb (final notebook — commit setelah dieksekusi)
+- data/ (ignored)
+- models/ (ignored kecuali model kecil ingin di-commit)
+- figures/ (opsional)
+- README.md (lokal folder)
 
-.gitignore (rekomendasi)
-Tambahkan entri berikut ke `.gitignore`:
+Tambahkan ke `.gitignore` (jika belum):
 ```
 .venv/
 venv/
@@ -39,72 +39,67 @@ social-media-sentiment-analysis/models/
 .ipynb_checkpoints/
 ```
 
-Langkah-langkah lengkap (PowerShell-safe)
-Ikuti langkah ini satu per satu — jalankan dari root repo.
-
-1) Masuk ke root repo
+1) Setup environment (PowerShell)
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
-Get-Location
-```
 
-2) Buat virtual environment dan aktifkan (rekomendasi: .venv)
-```powershell
+# buat venv di root (jika belum)
 py -3 -m venv .venv
-. .\.venv\Scripts\Activate.ps1
-```
 
-3) Upgrade pip dan install dependencies (di dalam venv — jangan gunakan `--user`)
-```powershell
+# aktifkan venv (PowerShell)
+. .\.venv\Scripts\Activate.ps1
+
+# upgrade pip & install dependencies (di dalam venv — tanpa --user)
 python -m pip install --upgrade pip setuptools wheel
-# Jika Anda punya requirements.txt di folder social-media-sentiment-analysis:
 python -m pip install -r social-media-sentiment-analysis\requirements.txt
 
-# Jika tidak ada requirements.txt, minimal install:
+# jika tidak ada requirements.txt, minimal:
 python -m pip install nbformat nbconvert jupyter ipykernel nltk pandas scikit-learn joblib matplotlib seaborn tqdm
 ```
 
-4) (Rekomendasi) Buat sample data cepat untuk menguji pipeline
-- Gunakan generator Python (lebih aman daripada menempel CSV panjang):
+2) Buat sample data (direkomendasikan, untuk pengujian cepat)
+- Gunakan generator Python (lebih mudah daripada paste CSV panjang):
 ```powershell
-# dari repo root, setelah venv aktif:
 python .\social-media-sentiment-analysis\create_sample_data.py
-# Hasil: social-media-sentiment-analysis\data\raw\tweets_scraped.csv
+# file hasil: social-media-sentiment-analysis\data\raw\tweets_scraped.csv
 ```
-- Alternatif manual: copy isi `social-media-sentiment-analysis/data/raw/sample_tweets.csv` → `social-media-sentiment-analysis/data/raw/tweets_scraped.csv`
+- Atau copy `sample_tweets.csv` (ringkas) ke `data/raw/tweets_scraped.csv`.
 
-5) Preprocess data → train → evaluate
+3) Jalankan pipeline (preprocess → train → evaluate)
 ```powershell
-# Preprocess (ubah path jika berbedak)
 python .\social-media-sentiment-analysis\preprocess.py --input .\social-media-sentiment-analysis\data\raw\tweets_scraped.csv --output .\social-media-sentiment-analysis\data\processed\tweets_clean.csv
 
-# Train baseline (TF-IDF + LogisticRegression)
 python .\social-media-sentiment-analysis\train_model.py --input .\social-media-sentiment-analysis\data\processed\tweets_clean.csv --output .\social-media-sentiment-analysis\models\model_pipeline.joblib
 
-# Evaluate (simpan confusion matrix di folder figures/)
 python .\social-media-sentiment-analysis\evaluate.py --model .\social-media-sentiment-analysis\models\model_pipeline.joblib --input .\social-media-sentiment-analysis\data\processed\tweets_clean.csv
 ```
 
-6) Buat / overwrite notebook final (1 code cell) menggunakan helper nbformat
+4) Buat / overwrite notebook final (1 code cell) — helper nbformat
+- File `social-media-sentiment-analysis/create_notebook.py` menulis notebook final (satu code cell).
+- Jalankan:
 ```powershell
-# helper create_notebook.py harus ada di social-media-sentiment-analysis/create_notebook.py
 python .\social-media-sentiment-analysis\create_notebook.py
-# Ini menulis: social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
+# menulis: social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
 ```
 
-7) Eksekusi notebook agar outputs tersimpan (gunakan python -m nbconvert)
-- Jalankan dari repo root (recommended):
+5) Eksekusi notebook agar outputs tersimpan (nbconvert)
+- Jalankan dari repo root (direkomendasikan):
 ```powershell
 python -m nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
 ```
-- Jika Anda menjalankan dari dalam folder `social-media-sentiment-analysis`:
-```powershell
-python -m nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
-```
+- Jika Anda berada di dalam folder `social-media-sentiment-analysis`, ganti path menjadi `"social-media-sentiment-analysis.ipynb"`.
 
-8) Stage, commit, dan push ke Git
-- Tambahkan file yang relevan (pastikan .gitignore sudah benar sehingga data/models tidak ikut ter-track kecuali Anda sengaja commit model kecil):
+6) Tambah, commit, push ke Git (PowerShell)
+- Sebelum push: selalu sinkronkan dengan remote agar tidak terjadi penolakan (rejected) karena remote lebih maju.
 ```powershell
+# Pastikan berada di root repo
+git fetch origin
+git checkout main
+
+# Tarik remote lalu rebase (direkomendasikan)
+git pull --rebase origin main
+
+# Jika pull/rebase sukses, tambahkan file dan push
 git add social-media-sentiment-analysis\create_notebook.py
 git add social-media-sentiment-analysis\create_sample_data.py
 git add social-media-sentiment-analysis\preprocess.py
@@ -117,72 +112,91 @@ git add social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
 git commit -m "chore: add social-media-sentiment-analysis pipeline and final executed notebook"
 git push origin main
 ```
+- Jika `git push` menolak (rejected): jalankan `git pull --rebase origin main`, selesaikan konflik jika ada, lalu `git push origin main`.
+- Jangan gunakan `git push --force` kecuali Anda paham risikonya.
 
-Troubleshooting singkat (paling umum)
+Troubleshooting umum
+- WinError 32 (file in use) saat pip install: tutup terminal/editor/Jupyter; `Get-Process *jupyter*` untuk cek; hentikan proses dengan `Stop-Process -Id <PID>` (tanpa tanda `<`/`>`). Jika masih bermasalah restart Windows lalu ulangi instal.
+- Kesalahan `--user` saat venv aktif: jangan pakai `--user`.
+- nbconvert "pattern matched no files": pastikan path notebook sesuai terhadap current working directory (CWD).
+- snscrape error (FileFinder.find_module): coba `python -m pip install --upgrade snscrape` atau install dari GitHub; jika tetap bermasalah gunakan sample CSV atau buat venv dengan Python 3.11/3.12.
 
-A) WinError 32 (file used by another process) saat `pip install`  
-- Tutup semua terminal / editor / Jupyter server / browser yang mungkin memakai file di `.venv\Scripts`.  
-- Cek proses:
+Notebook — isi code cell (satu-satunya code cell di final notebook)
+- Simpan file create_notebook.py agar ia menulis notebook berisi kode di bawah.
+- Kode ini sudah diperbaiki agar:
+  - mencari model di beberapa lokasi relatif (mencegah path mismatch saat nbconvert),
+  - menampilkan instruksi bila model belum ada,
+  - menggunakan ASCII characters untuk menghindari encoding artifacts.
+```python
+import sys
+import pandas as pd
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import joblib
+from pathlib import Path
+import os
+
+print('python', sys.version.split()[0], 'pandas', pd.__version__)
+
+# Ensure NLTK VADER resource available
+nltk.download('vader_lexicon', quiet=True)
+sid = SentimentIntensityAnalyzer()
+print('VADER example:', sid.polarity_scores('I love this product'))
+
+# Try several plausible model locations (relative paths)
+candidates = [
+    Path('models/model_pipeline.joblib'),                                      # if cwd is notebook folder
+    Path('social-media-sentiment-analysis/models/model_pipeline.joblib'),     # if cwd is repo root
+    Path('..') / 'models' / 'model_pipeline.joblib',
+    Path('..') / 'social-media-sentiment-analysis' / 'models' / 'model_pipeline.joblib'
+]
+
+model_path = None
+for p in candidates:
+    if p.exists():
+        model_path = p
+        break
+
+if model_path:
+    try:
+        print('\\nLoaded model pipeline from', model_path)
+        pipe = joblib.load(model_path)
+        samples = [
+            'I absolutely love this! Highly recommend.',
+            'This is ok, nothing special.',
+            'Terrible experience, will never buy again.'
+        ]
+        preds = pipe.predict(samples)
+        for s, p in zip(samples, preds):
+            print(f'[{p}]', s)
+    except Exception as e:
+        print('Error loading/using model pipeline:', e)
+        print('To retrain: python social-media-sentiment-analysis\\train_model.py --input social-media-sentiment-analysis\\data\\processed\\tweets_clean.csv')
+else:
+    print('\\nNo trained model found. Checked these locations:')
+    for p in candidates:
+        print(' -', p)
+    print('\\nTo train and produce a model file, run (from repo root):')
+    print('  python social-media-sentiment-analysis\\preprocess.py --input social-media-sentiment-analysis\\data\\raw\\tweets_scraped.csv --output social-media-sentiment-analysis\\data\\processed\\tweets_clean.csv')
+    print('  python social-media-sentiment-analysis\\train_model.py --input social-media-sentiment-analysis\\data\\processed\\tweets_clean.csv --output social-media-sentiment-analysis\\models\\model_pipeline.joblib')
+```
+
+Contoh output notebook (hasil eksekusi yang diharapkan)
+```
+pandas 2.3.3
+VADER example: {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
+
+No trained model at social-media-sentiment-analysis/models/model_pipeline.joblib - run training pipeline to add predictions.
+```
+> Catatan: jika Anda melihat `â€”` atau karakter aneh di tempat tanda hubung panjang, pastikan file .py/.ipynb disimpan dengan encoding UTF-8 (biasanya default editor modern). Untuk menghindari masalah, README dan kode menggunakan ASCII hyphen (-) atau double hyphen (--).
+
+Tambahan / Safety tips
+- Buat branch backup jika ragu sebelum rebase/merge:
 ```powershell
-Get-Process *jupyter* -ErrorAction SilentlyContinue
+git branch backup-before-sync
 ```
-- Hentikan proses yang relevan:
-```powershell
-Stop-Process -Id <PID> -Force
-```
-- Jika tidak bisa, restart Windows lalu ulangi:
-```powershell
-. .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade --force-reinstall jupyter jupyterlab nbconvert ipykernel
-```
-- Jika pip uninstall meninggalkan direktori temporary `~...` di site-packages, hapus hanya direktori yang spesifik disebut di warning (contoh path di pesan pip).
+- Gunakan `git pull --rebase origin main` untuk menjaga riwayat linear dan memudahkan push.
+- Jika Anda ingin saya membuat skrip PowerShell `manage_social_notebook.ps1` yang mengotomatiskan alur ini non-interactive, beri tahu dan saya buatkan.
 
-B) Error: "Can not perform a '--user' install. User site-packages are not visible in this virtualenv."  
-- Jangan gunakan `--user` ketika venv aktif. Gunakan `python -m pip install <pkg>`.
-
-C) nbconvert: "pattern matched no files"  
-- Pastikan path target notebook benar dan Anda menjalankan nbconvert dari folder yang sesuai. Gunakan path relatif sesuai CWD.
-
-D) snscrape error `'FileFinder' object has no attribute 'find_module'`  
-- Coba:
-```powershell
-python -m pip install --upgrade snscrape
-# atau bila perlu:
-python -m pip install --upgrade --force-reinstall "git+https://github.com/JustAnotherArchivist/snscrape.git"
-```
-- Jika tetap bermasalah pada Python 3.14, gunakan venv dengan Python 3.11/3.12 atau gunakan sample CSV (create_sample_data.py).
-
-E) Jangan paste blok Python multi-line langsung ke PowerShell  
-- Simpan kode ke `.py` dan jalankan `python script.py`, atau masuk REPL `python` dan jalankan di dalamnya.
-
-Minimal checklist verifikasi akhir
-- Ada file `social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb` di folder tersebut.
-- Notebook sudah dieksekusi (outputs tersimpan).
-- `git status` bersih setelah commit/push.
-- Data mentah & model besar tidak terkomit (periksa `.gitignore`).
-
-Contoh ringkas run sequence (copy/paste ke PowerShell, jalankan baris per baris)
-```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project'
-py -3 -m venv .venv
-. .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -r social-media-sentiment-analysis\requirements.txt
-
-python .\social-media-sentiment-analysis\create_sample_data.py
-python .\social-media-sentiment-analysis\preprocess.py --input .\social-media-sentiment-analysis\data\raw\tweets_scraped.csv --output .\social-media-sentiment-analysis\data\processed\tweets_clean.csv
-python .\social-media-sentiment-analysis\train_model.py --input .\social-media-sentiment-analysis\data\processed\tweets_clean.csv --output .\social-media-sentiment-analysis\models\model_pipeline.joblib
-python .\social-media-sentiment-analysis\evaluate.py --model .\social-media-sentiment-analysis\models\model_pipeline.joblib --input .\social-media-sentiment-analysis\data\processed\tweets_clean.csv
-python .\social-media-sentiment-analysis\create_notebook.py
-python -m nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
-
-git add social-media-sentiment-analysis\*.py social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
-git commit -m "chore: add social-media-sentiment-analysis pipeline and executed notebook"
-git push origin main
-```
-
-Penutup singkat
-- README ini mengumpulkan semua langkah dari set lokasi hingga commit ke Git secara PowerShell‑safe.  
-- Jika Anda ingin, saya bisa: membuat `manage_social_notebook.ps1` yang mengotomatiskan semua langkah di atas (non-interactive), atau langsung commit file-file yang saya sarankan ke repository Anda — sebutkan repo/branch dan saya bantu susun commit message. 
-```
+---
 ```

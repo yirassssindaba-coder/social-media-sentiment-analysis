@@ -1,18 +1,18 @@
 # social-media-sentiment-analysis
 
-Analisis sentimen sederhana dari data media sosial (demo). Termasuk skrip, notebook, dan instruksi menjalankan environment Jupyter secara permanen (PowerShell-safe).
+Analisis sentimen sederhana dari data media sosial (demo). Repo ini berisi skrip Python untuk pengumpulan data (opsional), preprocess, training baseline, evaluasi, visualisasi, dan satu notebook final yang berisi 1 code cell yang telah dieksekusi (outputs tersimpan) supaya preview GitHub menampilkan hasil.
 
 Ringkasan
-- Tujuan: menyediakan pipeline minimal untuk eksperimen sentiment analysis dan satu notebook final yang berisi 1 code cell dan telah dieksekusi (outputs tersimpan) supaya preview GitHub menampilkan hasil.
-- Lokasi proyek (contoh): `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
-- Rekomendasi venv: `.venv` (atau `venv` sesuai preferensi). Sesuaikan perintah bila memakai nama lain.
+- Tujuan: pipeline minimal end-to-end untuk eksperimen sentiment analysis dan artefak yang mudah ditinjau oleh recruiter / reviewer.
+- Contoh lokasi kerja: `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
+- Rekomendasi venv: `.venv` (disarankan di root repo atau di dalam folder `social-media-sentiment-analysis` sesuai preferensi).
 
 Prasyarat
-- Python 3.8–3.12 (3.14 bisa berfungsi tapi beberapa paket seperti pyarrow mungkin belum tersedia)
+- Python 3.8 - 3.12 (Python 3.14 dapat dipakai tetapi beberapa paket seperti `pyarrow` belum tersedia).
 - Git
-- Koneksi internet (untuk mengunduh paket / NLTK resources)
+- Koneksi internet (untuk pip install & NLTK resource seperti `vader_lexicon`).
 
-Isi folder (rekomendasi)
+Struktur yang direkomendasikan
 - social-media-sentiment-analysis/
   - create_notebook.py
   - data_collection.py
@@ -21,301 +21,209 @@ Isi folder (rekomendasi)
   - evaluate.py
   - visualize.py
   - requirements.txt
-  - README.md (folder-local)
+  - README.md (lokal folder)
   - social-media-sentiment-analysis.ipynb (final notebook — commit setelah dieksekusi)
   - data/ (ignored)
   - models/ (ignored kecuali model kecil ingin di-commit)
   - figures/ (opsional artefak)
+- manage_social_notebook.ps1 (opsional helper di root repo)
+- .gitignore (pastikan memasukkan data/, models/, .venv/)
 
-Jangan commit
-- `social-media-sentiment-analysis/data/` (raw/processed data besar)
+Jangan commit ke repo
+- `social-media-sentiment-analysis/data/` (raw / processed dataset besar)
 - `social-media-sentiment-analysis/models/` (model besar)
-- `.venv/` atau `venv/`
-Tambahkan entri di `.gitignore`.
+- virtual environment (`.venv/`, `venv/`, dll.)
+Tambahkan entri tersebut ke `.gitignore`.
 
 Quick start (PowerShell — singkat)
-1. Pindah ke folder proyek:
+1. Masuk folder proyek:
    ```powershell
    Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
-   Get-Location
    ```
-2. Buat virtual environment dan aktifkan (direkomendasikan `.venv`):
+2. Buat virtualenv dan aktifkan:
    ```powershell
    py -3 -m venv .venv
-   .\.venv\Scripts\Activate.ps1
+   . .\.venv\Scripts\Activate.ps1
    ```
-3. Upgrade pip & install dependencies:
+3. Upgrade pip & install dependencies (di dalam venv; jangan gunakan `--user`):
    ```powershell
    python -m pip install --upgrade pip setuptools wheel
    pip install -r requirements.txt
    ```
-4. Jalankan demo (jika ada `src\main.py` atau skrip utama):
+4. (Opsional) Jalankan skrip demo:
    ```powershell
-   python .\src\main.py
+   python .\src\main.py   # jika ada
    ```
-5. Jalankan JupyterLab (opsional):
+5. (Opsional) Jalankan JupyterLab:
    ```powershell
    python -m jupyter lab
    ```
 
-Langkah instalasi Jupyter & pengaturan permanen (jalankan blok per blok)
-Catatan: jalankan tiap blok satu per satu. Jangan paste semuanya sekaligus.
+Panduan instalasi Jupyter & pengaturan (jalankan blok per blok)
+- Jalankan setiap blok satu per satu. Jangan paste semuanya sekaligus.
 
-0) Pastikan lokasi kerja
+0) Pastikan lokasi kerja (jalankan dari root folder `social-media-sentiment-analysis` atau repo root jika Anda menaruh files di subfolder)
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
-Get-Location
 Get-ChildItem -Name
 ```
 
-1) Periksa struktur cepat
+1) Verifikasi interpreter & PATH jika perlu
 ```powershell
-Test-Path .\venv
-Test-Path .\src\main.py
-Test-Path .\README.md
-Get-ChildItem -Directory | Select-Object Name
-```
-
-2) Perbaikan PATH sementara (jika `python` atau `where.exe` tidak ditemukan)
-```powershell
-Get-Command where.exe -ErrorAction SilentlyContinue
 Get-Command python -ErrorAction SilentlyContinue
 
-# Jika tidak ditemukan, gabungkan Path Machine + User (session only)
+# Jika python tidak ditemukan, perbaiki PATH session-only:
 $machine = [Environment]::GetEnvironmentVariable('Path','Machine')
 $user = [Environment]::GetEnvironmentVariable('Path','User')
 $env:PATH = if ($user) { $machine + ';' + $user } else { $machine }
 if (-not ($env:PATH -match 'Windows\\System32')) { $env:PATH += ';C:\Windows\System32' }
-
 Get-Command python -ErrorAction SilentlyContinue
 ```
 
-3) Temukan interpreter Python sistem (set variabel $PY)
+2) Buat / perbaiki virtual environment (jalankan di folder proyek)
 ```powershell
-Remove-Variable PY -ErrorAction SilentlyContinue
-$cmd = Get-Command python -ErrorAction SilentlyContinue
-if ($cmd) { $PY = $cmd.Source } else {
-  $candidates = @(
-    "$env:LOCALAPPDATA\Programs\Python\Python314\python.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
-    "C:\Python314\python.exe",
-    "C:\Python312\python.exe"
-  )
-  foreach ($p in $candidates) { if (-not $PY -and (Test-Path $p)) { $PY = $p } }
-}
-if (-not $PY) { Write-Error "Python tidak ditemukan. Install Python atau beri path penuh ke python.exe"; throw }
-Write-Host "Using Python: $PY"
-& $PY --version
-```
-
-4) Buat / perbaiki venv (jalankan di root proyek)
-```powershell
+# gunakan .venv di dalam project
 if (-not (Test-Path .\.venv\Scripts\python.exe)) {
   if (Test-Path .\.venv) { Remove-Item -Recurse -Force .\.venv }
-  & $PY -m venv .\.venv
+  py -3 -m venv .\.venv
 }
-Test-Path .\.venv\Scripts\python.exe
+. .\.venv\Scripts\Activate.ps1
+python --version
+python -m pip --version
 ```
 
-5) Pastikan ExecutionPolicy untuk menjalankan Activate.ps1 (CurrentUser)
+3) Pastikan ExecutionPolicy (agar Activate.ps1 bisa dijalankan)
 ```powershell
 Get-ExecutionPolicy -List
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 ```
 
-6) Aktifkan venv dan verifikasi interpreter venv
-```powershell
-. .\.venv\Scripts\Activate.ps1
-python --version
-python -c "import sys; print('sys.executable=', sys.executable)"
-python -m pip --version
-```
-
-7) Install paket utama (jalankan hanya setelah venv aktif)
+4) Install paket penting (di dalam venv — tanpa `--user`)
 ```powershell
 python -m pip install --upgrade pip setuptools wheel
 
-python -m pip install --upgrade certifi `
-  pandas numpy scipy scikit-learn matplotlib seaborn `
-  nltk ipywidgets notebook qtconsole widgetsnbextension `
-  jupyter jupyterlab ipykernel `
-  openpyxl xlsxwriter xlrd `
-  plotly requests beautifulsoup4 lxml `
-  joblib tqdm
-
-# Enable widgets for classic notebook
-jupyter nbextension enable --py widgetsnbextension --sys-prefix
-
-# Download NLTK resource untuk VADER
-python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
-
-# Optional: record exact packages
-python -m pip freeze > requirements.txt
+python -m pip install nbformat nbconvert jupyter jupyterlab ipykernel nltk pandas scikit-learn joblib matplotlib seaborn tqdm snscrape
+# sesuaikan dengan content requirements.txt
 ```
 
-Catatan: bila menggunakan Python 3.14, hindari memasang pyarrow (tidak tersedia wheel stabil saat ini).
+Catatan penting:
+- Jangan gunakan `python -m pip install --user ...` saat venv aktif — akan menghasilkan error "User site-packages are not visible in this virtualenv."
+- Jika `pip install` gagal karena file sedang dipakai (WinError 32), tutup semua terminal/IDE/Jupyter yang mungkin menggunakan file tersebut, lalu ulangi atau restart Windows.
 
-8) Set SSL cert (rekomendasi permanen untuk User)
+5) Enable widgets & unduh resource NLTK
+```powershell
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
+```
+
+6) (Opsional) Set SSL_CERT_FILE permanen untuk User jika ada masalah SSL
 ```powershell
 $cert = & python -c "import certifi; print(certifi.where())"
-$env:SSL_CERT_FILE = $cert
 [Environment]::SetEnvironmentVariable('SSL_CERT_FILE',$cert,'User')
-Write-Host "SSL_CERT_FILE set permanently for User to: $cert"
+Write-Host "SSL_CERT_FILE set for User to: $cert"
 ```
 
-9) Perbaiki / reinstall Jupyter launcher jika perlu
+7) (Jika diperlukan) Reinstall Jupyter launcher setelah mengatasi file-lock
 ```powershell
-Get-ChildItem .\.venv\Scripts\*jupyter* -Force | Select-Object Name,FullName
+# Pastikan tidak ada proses jupyter/jupyter-lab aktif
+Get-Process *jupyter* -ErrorAction SilentlyContinue
+
+# Jika ada file launcher bermasalah, hapus executable dan reinstall
 Remove-Item .\.venv\Scripts\jupyter.exe -Force -ErrorAction SilentlyContinue
 Remove-Item .\.venv\Scripts\jupyter-lab.exe -Force -ErrorAction SilentlyContinue
 Remove-Item .\.venv\Scripts\jupyter-notebook.exe -Force -ErrorAction SilentlyContinue
+
 python -m pip install --upgrade --force-reinstall jupyter jupyterlab ipykernel
 ```
 
-10) Daftarkan kernel ipykernel untuk venv (user-level)
+8) Daftarkan kernel venv ke Jupyter (user-level)
 ```powershell
 python -m ipykernel install --user --name "social_media_sentiment" --display-name "Python (social-media-sentiment)"
 jupyter kernelspec list
 ```
 
-11) Jalankan JupyterLab dan periksa
+Menulis dan mengeksekusi notebook final (PowerShell-safe)
+- Jangan paste blok Python langsung ke PowerShell — PowerShell akan mengira itu perintah. Jalankan file `.py` atau gunakan `python -c "..."` / REPL `python`.
+
+1) Buat / overwrite notebook final (sudah disediakan `create_notebook.py`)
 ```powershell
-python -m jupyter lab
-# atau debug:
-# python -m jupyter lab --debug
+# Jalankan helper yang menulis satu code-cell notebook:
+python .\social-media-sentiment-analysis\create_notebook.py
 ```
 
-Git — urutan PowerShell-safe untuk memastikan hanya 1 notebook final
-- Jalankan perintah ini dari root repo (contoh `C:\Users\ASUS\Desktop\python-project`).
+2) Eksekusi notebook agar outputs tersimpan (gunakan python -m nbconvert untuk menghindari masalah launcher)
+```powershell
+# Pastikan venv aktif dan nbconvert terinstal di venv
+python -m nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
+```
 
-1) Masuk ke root repo dan verifikasi:
+Tips menjalankan nbconvert bila mengalami error:
+- Jika muncul error module not found untuk `jupyterlab`, periksa instalasi jupyter/jupyterlab di venv dan reinstall jika perlu.
+- Jika muncul warning Proactor event loop (zmq), biasanya informatif — periksa apakah notebook tetap berhasil dieksekusi.
+- Jika NLTK resource belum terunduh, jalankan `python -c "import nltk; nltk.download('vader_lexicon', quiet=False)"` di venv.
+
+Git — PowerShell-safe workflow untuk memastikan hanya satu notebook final
+Jalankan perintah di bawah dari repo root (contoh `C:\Users\ASUS\Desktop\python-project`).
+
+1) Sinkronisasi branch utama & commit tracked changes
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
-Get-Location
-git status
-git branch --show-current
-git remote -v
-```
-
-2) Pastikan remote benar (opsional):
-```powershell
-git remote set-url origin https://github.com/yirassssindaba-coder/python-project.git
-git remote -v
-```
-
-3) Sinkronkan branch main:
-```powershell
 git fetch origin
 git checkout main
 if ($LASTEXITCODE -ne 0) {
-  if (git ls-remote --heads origin main) {
-    git checkout -B main origin/main
-  } else {
-    git checkout -B main
-  }
+  if (git ls-remote --heads origin main) { git checkout -B main origin/main } else { git checkout -B main }
 }
 git pull origin main
-```
 
-4) Stage/commit tracked changes (jika ada):
-```powershell
 git add -A
 if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
   git commit -m "feat: add/update social-media-sentiment-analysis project"
-} else {
-  Write-Host "No tracked changes to commit."
+  git push origin main
 }
 ```
 
-5) Pastikan hanya 1 notebook final (rename jika perlu):
+2) Rename untitled notebook jika ada (opsional)
 ```powershell
 if (Test-Path "social-media-sentiment-analysis\Untitled1.ipynb") {
   git mv "social-media-sentiment-analysis\Untitled1.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb"
   git commit -m "chore: rename Untitled1.ipynb -> social-media-sentiment-analysis.ipynb"
   git push origin main
-} else {
-  Write-Host "No Untitled1.ipynb found. Use step 6 to create/overwrite the notebook."
 }
 ```
 
-6) Buat / overwrite notebook final (helper dengan nbformat)
-- Buat script `create_notebook.py` (sudah tersedia di folder proyek yang saya sediakan) yang menulis 1 code cell berikut:
-
-```python
-import pandas as pd
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-
-print("pandas", pd.__version__)
-nltk.download("vader_lexicon", quiet=True)
-sid = SentimentIntensityAnalyzer()
-print(sid.polarity_scores("I love this product"))
-```
-
-PowerShell untuk membuat/menjalankan helper:
+3) Tambah create_notebook.py, script lain, dan notebook yang sudah dieksekusi lalu push
 ```powershell
-# jika Anda tidak memiliki file create_notebook.py di root, buat dan jalankan:
-Set-Content -Path ".\create_notebook.py" -Value (Get-Content -Raw .\social-media-sentiment-analysis\create_notebook.py) -Encoding UTF8
-python .\create_notebook.py
-
-git add "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb"
-git commit -m "chore: create social-media-sentiment-analysis.ipynb with requested content"
+git add social-media-sentiment-analysis\create_notebook.py
+git add social-media-sentiment-analysis\*.py
+git add social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
+git commit -m "chore: add social-media-sentiment-analysis helpers and notebook"
 git push origin main
 ```
 
-7) Hapus file ganda / duplikat di folder `social-media-sentiment-analysis`:
+Membersihkan duplikat
+- Periksa isi folder target, lalu hapus file duplikat yang tidak perlu (contoh `Untitled.ipynb`, `.py` duplikat).
+- Gunakan `git rm --ignore-unmatch <file>` lalu commit.
+
+Troubleshooting umum & rekomendasi
+- WinError 32 (file sedang digunakan) saat `pip install`: tutup VS Code/terminal/Jupyter; jika perlu restart Windows; ulangi `pip install`.
+- Jangan gunakan `--user` ketika venv aktif.
+- Jangan paste code Python multi-line langsung ke PowerShell (PowerShell bukan Python REPL).
+- Jika notebook tidak menampilkan prediksi model: pastikan Anda sudah menjalankan pipeline training (preprocess -> train_model) dan file model disimpan ke salah satu lokasi yang dicek (lihat `create_notebook.py` lines for candidate paths).
+- Simpan semua file `.py` dan notebook sebagai UTF-8 untuk menghindari artefak encoding (mis. â€”).
+
+Contoh perintah training (dari repo root)
 ```powershell
-Get-ChildItem -Path .\social-media-sentiment-analysis\ -File | Select-Object Name
+# Scrape (opsional)
+python .\social-media-sentiment-analysis\data_collection.py --mode scrape --query "product review" --limit 500 --out social-media-sentiment-analysis\data\raw\tweets_scraped.csv
 
-$dupes = @(
-  "social-media-sentiment-analysis\social-media-sentiment-analysis.py",
-  "social-media-sentiment-analysis\social_media_sentiment_analysis.py",
-  "social-media-sentiment-analysis\Untitled.ipynb",
-  "social-media-sentiment-analysis\Untitled1.ipynb"
-)
+# Preprocess
+python .\social-media-sentiment-analysis\preprocess.py --input social-media-sentiment-analysis\data\raw\tweets_scraped.csv
 
-foreach ($f in $dupes) {
-  git rm --ignore-unmatch $f
-  if (Test-Path $f) { Remove-Item $f -Force -ErrorAction SilentlyContinue; Write-Host "Removed local file: $f" }
-}
-git add -A
-if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
-  git commit -m "chore: remove duplicate files in social-media-sentiment-analysis"
-  git push origin main
-}
-```
+# Train baseline
+python .\social-media-sentiment-analysis\train_model.py --input social-media-sentiment-analysis\data\processed\tweets_clean.csv
 
-8) Eksekusi notebook agar outputs tersimpan (nbconvert)
-```powershell
-python -m pip install --user nbformat nbconvert jupyter nltk
-jupyter nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
-
-git add "social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb"
-if (-not [string]::IsNullOrWhiteSpace((git status --porcelain))) {
-  git commit -m "chore: execute notebook and record outputs"
-  git push origin main
-}
-```
-
-9) Perbaiki `.gitignore` dan hentikan tracking venv
-```powershell
-$venvPath = "social-media-sentiment-analysis/venv"
-git rm -r --cached --ignore-unmatch $venvPath
-if (Test-Path ".\gitignore" -PathType Leaf -ErrorAction SilentlyContinue) {
-  if (-not (Test-Path ".\.gitignore")) { Move-Item ".\gitignore" ".\.gitignore" -Force }
-}
-if (-not (Test-Path ".\.gitignore")) { New-Item -Path ".\.gitignore" -ItemType File -Force | Out-Null }
-$found = Select-String -Path .\.gitignore -Pattern $venvPath -SimpleMatch -Quiet
-if (-not $found) { Add-Content -Path .\.gitignore -Value $venvPath; git add .\.gitignore; git commit -m "chore: add venv to .gitignore and stop tracking venv"; git push origin main }
-```
-
-10) Hapus/ignore helper `rename_notebooks.py` jika ada
-```powershell
-git rm --ignore-unmatch "social-media-sentiment-analysis/rename_notebooks.py"
-Add-Content .\.gitignore "social-media-sentiment-analysis/rename_notebooks.py"
-git add .\.gitignore
-git commit -m "chore: ignore local rename_notebooks helper"
-git push origin main
+# Evaluate (opsional)
+python .\social-media-sentiment-analysis\evaluate.py --model social-media-sentiment-analysis\models\model_pipeline.joblib --input social-media-sentiment-analysis\data\processed\tweets_clean.csv
 ```
 
 Verifikasi akhir
@@ -323,30 +231,22 @@ Verifikasi akhir
 git status
 git branch --show-current
 git remote -v
-Get-ChildItem -Path .\social-media-sentiment-analysis\ -File | Select-Object Name
+Get-ChildItem -Path .\social-media-sentiment-analysis\ -Filter *.ipynb -File | Select-Object Name
 ```
 
-Contoh output yang diharapkan setelah notebook dijalankan
+Output contoh yang diharapkan setelah notebook dieksekusi
 ```
 pandas 2.3.3
 {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
 ```
 
-Troubleshooting singkat
-- Jika `jupyter nbconvert --execute` gagal: jalankan `python -m pip install --user nbformat nbconvert jupyter nltk` lalu ulangi.
-- NLTK `vader_lexicon` diunduh saat notebook dieksekusi; butuh koneksi internet.
-- Pesan `git: 'credential-manager-core' is not a git command` biasanya peringatan helper credential; push masih bisa berhasil.
-- Jika ada error permissions saat Set-ExecutionPolicy, jalankan dengan scope `CurrentUser` atau hubungi admin.
+Praktik terbaik & keamanan
+- Jangan commit data sensitif atau kredensial. Gunakan `.env` + `.gitignore` jika perlu.
+- Simpan model besar di storage terpisah (release, S3, GDrive), bukan di repo.
+- Simpan snapshot environment (`pip freeze > requirements.txt`) untuk reproduktibilitas.
 
-Catatan keamanan & praktik terbaik
-- Jangan commit kredensial, file .env, atau data pribadi.
-- Simpan dataset sensitif di luar repo atau gunakan storage/artefak.
-- Untuk model besar, gunakan release/artifacts atau storage terpisah, bukan commit langsung.
-
-Butuh bantuan lanjut?
-- Saya dapat:
-  - Buatkan file PowerShell `.ps1` otomatis untuk menjalankan seluruh alur (interaktif atau non-interactive), atau
-  - Siapkan sample CSV berlabel kecil agar Anda langsung bisa train & lihat contoh output notebook, atau
-  - Commit file-file Python & notebook (Anda memberi repo/branch dan izinkan akses).
-
----
+Butuh bantuan lanjutan?
+- Saya dapat menyiapkan:
+  - `manage_social_notebook.ps1` (non-interactive) yang memanggil `python -m nbconvert` untuk mengeksekusi notebook dan commit hasilnya, atau
+  - contoh CSV kecil (50 baris) berlabel agar Anda bisa langsung menjalankan training & melihat prediksi, atau
+  - commit file `create_notebook.py` yang lebih robust (mencari model di beberapa path) — jika Anda mau saya commit, berikan repo/branch.

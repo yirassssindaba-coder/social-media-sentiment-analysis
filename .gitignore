@@ -9,3 +9,5 @@ __pycache__/
 data/
 social-media-sentiment-analysis/rename_notebooks.py
 social-media-sentiment-analysis/rename_notebooks.py
+social-media-sentiment-analysis/models/
+social-media-sentiment-analysis/figures/

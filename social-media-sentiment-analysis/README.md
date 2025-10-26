@@ -537,3 +537,52 @@ Troubleshooting singkat
 Jika Anda mau, saya bisa:
 - Buat file PowerShell `.ps1` interaktif yang menjalankan langkah-langkah ini (menanyakan konfirmasi sebelum menghapus), atau
 - Commit dan buat PR yang memperbarui README/penjelasan ini di repo — beri saya konfirmasi.
+
+
+# Social Media Sentiment Analysis (folder)
+
+This folder contains a compact sentiment analysis pipeline and a single final notebook.
+
+Contents:
+- create_notebook.py — writes the final notebook `social-media-sentiment-analysis.ipynb` (1 code cell).
+- data_collection.py — optional snscrape CSV producer.
+- preprocess.py — basic cleaning (produces `data/processed/tweets_clean.csv`).
+- train_model.py — TF-IDF + LogisticRegression training. Produces `models/model_pipeline.joblib`.
+- evaluate.py — classification report + confusion matrix (saved to `figures/`).
+- visualize.py — small plotting helper.
+- requirements.txt — packages (see file).
+- social-media-sentiment-analysis.ipynb — the final notebook (created by create_notebook.py).
+- .gitignore — to ignore data, models, venv.
+
+Place raw CSV (if available) at:
+social-media-sentiment-analysis/data/raw/your_tweets.csv
+
+Quick local run (PowerShell from repo root):
+1. Create venv & install:
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install --upgrade pip
+   pip install -r social-media-sentiment-analysis/requirements.txt
+
+2. If you have CSV:
+   python social-media-sentiment-analysis\preprocess.py --input social-media-sentiment-analysis\data\raw\your_tweets.csv
+
+   If not, use snscrape:
+   python social-media-sentiment-analysis\data_collection.py --mode scrape --query "product review" --limit 500 --out social-media-sentiment-analysis\data\raw\tweets_scraped.csv
+   then:
+   python social-media-sentiment-analysis\preprocess.py --input social-media-sentiment-analysis\data\raw\tweets_scraped.csv
+
+3. Train:
+   python social-media-sentiment-analysis\train_model.py --input social-media-sentiment-analysis\data\processed\tweets_clean.csv
+
+4. Evaluate (optional):
+   python social-media-sentiment-analysis\evaluate.py --model social-media-sentiment-analysis\models\model_pipeline.joblib --input social-media-sentiment-analysis\data\processed\tweets_clean.csv
+
+5. Create notebook:
+   python social-media-sentiment-analysis\create_notebook.py
+
+6. Execute notebook to store outputs (so GitHub preview shows outputs):
+   python -m pip install --user nbformat nbconvert jupyter nltk
+   jupyter nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
+
+7. Commit & push (see root script or manual git commands).

@@ -1,110 +1,185 @@
 ```markdown
-# social-media-sentiment-analysis — Fixes for Git push & stopping processes (PowerShell-safe)
+# social-media-sentiment-analysis — Full Setup & Troubleshooting (PowerShell-safe)
 
-This README updates previous instructions to remove the common errors you encountered:
-- rejected push (non-fast-forward),
-- misuse of `Stop-Process` with literal placeholders (`<PID>`),
-- untracked `models/` and `figures/` directories showing in `git status`,
-- the credential helper warning.
+This README collects and consolidates all previous instructions into one clear, copy‑pasteable, PowerShell‑safe guide. It covers:
 
-Follow the sections below and run the commands exactly as shown (one block / one step at a time). Do not paste angle-bracket placeholders like `<PID>` or `<file>` — use the actual values from the system output or the exact file paths shown.
+- environment setup (venv),
+- installing Jupyter + data science packages (permanent in venv),
+- creating sample data,
+- quick training to produce a model the notebook will load,
+- creating & executing the single-cell notebook so GitHub preview shows outputs,
+- safe Git workflow (fetch/rebase, resolving non-fast-forward pushes),
+- handling untracked `models/` and `figures/` directories,
+- safely stopping Jupyter processes (no literal `<PID>`),
+- best practices (.gitignore, not committing venv or large data),
+- common troubleshooting.
+
+Run each block one at a time from the project root. Example project root:
+`C:\Users\ASUS\Desktop\python-project`
+
+Important notes
+- Always run commands from repo root unless stated otherwise.
+- Activate the virtual environment before running Python installs or scripts.
+- Do not paste multi-line Python directly to PowerShell prompt — save to .py and run `python script.py` or use a heredoc pattern.
+- When a command example shows a path, use that exact path or your adjusted path; do NOT type placeholders like `<PID>`.
 
 ---
 
-IMPORTANT RULES
-- Always run commands from the repository root: `C:\Users\ASUS\Desktop\python-project`
-- Activate your virtualenv before running Python-related commands:
-  ```powershell
-  . .\.venv\Scripts\Activate.ps1
-  ```
-- When I show how to stop processes, use the exact numeric Ids reported by `Get-Process`. I include safe, copyable commands that automatically stop matching Jupyter processes if found.
+## Quick reference — what will be in your repo
+Recommended files / folders inside `social-media-sentiment-analysis/`:
+- create_notebook.py           (writes final notebook with one code cell)
+- create_sample_data.py       (creates sample CSV for testing)
+- train_quick.py              (quick trainer that produces models/model_pipeline.joblib)
+- preprocess.py               (optional / production training)
+- train_model.py              (optional / production training)
+- evaluate.py                 (produces evaluation figures)
+- visualize.py                (optional plotting helpers)
+- requirements.txt
+- social-media-sentiment-analysis.ipynb  (final executed notebook)
+- data/                       (ignored by default)
+- models/                     (ignored by default)
+- figures/                    (optional, often ignored)
+- README.md
+
+Recommended root `.gitignore` includes:
+```
+.venv/
+venv/
+social-media-sentiment-analysis/data/
+social-media-sentiment-analysis/models/
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+```
 
 ---
 
-1) Fix: "rejected (non-fast-forward)" when pushing
-
-Reason: remote/main has commits you don't have locally. Fix by fetching remote, rebasing (recommended), resolving conflicts, then pushing.
-
-Safe step-by-step (run each line, check output before continuing):
+## 0) Start here — set location
 ```powershell
-# 1. Go to repo root
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
-
-# 2. Show current status
-git status
-
-# 3. Save any uncommitted work (optional)
-# If you have uncommitted changes and want to save them temporarily:
-git stash push -m "WIP before sync with origin"
-
-# 4. Fetch remote updates
-git fetch origin
-
-# 5. Ensure you're on main
-git checkout main
-
-# 6. Rebase your local commits onto origin/main (keeps history linear)
-git pull --rebase origin main
-
-# 7. If the previous step completed without conflicts, push:
-git push origin main
+Get-Location
 ```
-
-If `git pull --rebase origin main` reports conflicts:
-- Git will list conflicted files. Open each listed file in your editor, resolve the conflict markers, then:
-```powershell
-# Example: after you edit and save fixed files
-git add .\path\to\resolved-file.py
-
-# Continue rebase
-git rebase --continue
-
-# Repeat until rebase finishes, then push
-git push origin main
-```
-
-If you prefer merge instead of rebase:
-```powershell
-git pull origin main    # performs fetch + merge
-# fix any merge conflicts, then
-git add .\path\to\resolved-file.py
-git commit -m "Resolve merge conflicts"
-git push origin main
-```
-
-If you used `git stash` earlier and want your WIP back:
-```powershell
-git stash list
-git stash pop   # applies and removes the most recent stash
-# resolve any conflicts, then continue workflow
-```
-
-Notes about `credential-manager-core` warning:
-- The message "git: 'credential-manager-core' is not a git command" is just a warning that a configured helper is missing. Push still works once you have network/auth configured.
-- To avoid the warning, install Git Credential Manager for Windows or set a helper you have:
-  ```powershell
-  git config --global credential.helper manager-core
-  ```
-  (If `manager-core` is not installed, install GCM from https://aka.ms/gcm/windows or remove/change the helper.)
 
 ---
 
-2) Fix: "Stop-Process : Cannot find a process with the process identifier ..." and misuse of placeholders
-
-Do NOT run `Stop-Process -Id <PID>` literally. Use numeric PIDs that `Get-Process` shows. Use the following safe sequence to detect and stop Jupyter-related processes if they exist.
-
-Safe commands (copy/paste together):
+## 1) Create & activate virtualenv (recommended `.venv`)
 ```powershell
-# 1) List Jupyter-related processes (if any)
+py -3 -m venv .venv
+. .\.venv\Scripts\Activate.ps1
+
+# verify
+python --version
+python -m pip --version
+```
+
+---
+
+## 2) Install required packages (inside venv; do NOT use `--user`)
+If you have `social-media-sentiment-analysis\requirements.txt`:
+```powershell
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r social-media-sentiment-analysis\requirements.txt
+```
+
+If not, install a minimal set:
+```powershell
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install nbformat nbconvert jupyter ipykernel nltk pandas scikit-learn joblib matplotlib seaborn tqdm
+# optional: snscrape (may be problematic on Python 3.14)
+python -m pip install snscrape
+```
+
+Enable widgets (classic notebook):
+```powershell
+jupyter nbextension enable --py widgetsnbextension --sys-prefix
+python -c "import nltk; nltk.download('vader_lexicon', quiet=True)"
+```
+
+If you encounter WinError 32 (file lock) while installing:
+- Close VS Code, terminals, browsers, Jupyter servers.
+- Check running Jupyter processes and stop them (see section "Stop Jupyter safely" below).
+- Restart Windows if necessary, then run install again.
+
+---
+
+## 3) Create sample data (recommended for testing)
+Use the generator script to avoid pasting long CSV:
+```powershell
+python .\social-media-sentiment-analysis\create_sample_data.py
+# -> creates social-media-sentiment-analysis\data\raw\tweets_scraped.csv
+```
+
+If you prefer a small manual file, copy `data/raw/sample_tweets.csv` to `data/raw/tweets_scraped.csv`.
+
+---
+
+## 4) Quick train to produce model that notebook expects
+Save and run the quick training script `train_quick.py` (provided separately). From repo root:
+```powershell
+python .\social-media-sentiment-analysis\train_quick.py
+```
+Expected outcome:
+- A model file created at:
+  `social-media-sentiment-analysis\models\model_pipeline.joblib`
+- Terminal output showing training progress and a classification report.
+
+If file exists, verify:
+```powershell
+Test-Path .\social-media-sentiment-analysis\models\model_pipeline.joblib
+```
+True means model exists.
+
+---
+
+## 5) Verify model can predict (quick check)
+Run a small verification script (safe heredoc approach):
+```powershell
+python - <<'PY'
+import joblib
+from pathlib import Path
+p = Path("social-media-sentiment-analysis/models/model_pipeline.joblib")
+if not p.exists():
+    print("Model not found at", p)
+    raise SystemExit(1)
+pipe = joblib.load(p)
+samples = [
+    "I absolutely love this! Highly recommend.",
+    "This is ok, nothing special.",
+    "Terrible experience, will never buy again."
+]
+print("Predictions:", list(pipe.predict(samples)))
+PY
+```
+
+---
+
+## 6) Create & execute final notebook (one code cell)
+Write the notebook (helper `create_notebook.py` should create `social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb` with a single code cell that loads NLTK VADER and attempts to load the pipeline from common paths). Then execute it so outputs are embedded:
+
+From repo root:
+```powershell
+python .\social-media-sentiment-analysis\create_notebook.py
+
+# Execute notebook and save outputs into file (run from repo root)
+python -m nbconvert --to notebook --inplace --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --ExecutePreprocessor.timeout=120
+```
+
+Open the notebook in JupyterLab or VS Code to confirm the output shows VADER output and model predictions (not the "No trained model..." message).
+
+---
+
+## 7) Stop Jupyter safely (no literal placeholders)
+If you need to stop running Jupyter processes before reinstalling or updating packages, run these safe commands — copy/paste exactly:
+
+```powershell
+# Detect jupyter processes
 $pj = Get-Process *jupyter* -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path
 
-# 2) Show what was found
 if ($null -eq $pj -or $pj.Count -eq 0) {
   Write-Host "No Jupyter processes found."
 } else {
   Write-Host "Jupyter processes found:"
   $pj | Format-Table -AutoSize
-  # 3) Stop each process safely
   foreach ($p in $pj) {
     try {
       Write-Host "Stopping PID" $p.Id "ProcessName" $p.ProcessName
@@ -117,36 +192,29 @@ if ($null -eq $pj -or $pj.Count -eq 0) {
 }
 ```
 
-Alternative stopping by name (also safe):
+Alternative by name:
 ```powershell
-# stops processes by name if present, no placeholders
 Get-Process -Name jupyter-lab,jupyter-notebook -ErrorAction SilentlyContinue | Select-Object Id,ProcessName
 Stop-Process -Name jupyter-lab -Force -ErrorAction SilentlyContinue
 Stop-Process -Name jupyter-notebook -Force -ErrorAction SilentlyContinue
 ```
 
+Do NOT run `Stop-Process -Id <PID>` with angle brackets. Use numeric IDs returned by `Get-Process`.
+
 ---
 
-3) Untracked `models/` and `figures/` show in `git status` — how to handle
+## 8) Git: handle untracked models/figures & .gitignore
+Decide whether to track models/figures or ignore them. Recommended: ignore.
 
-You have two options:
-- Option A (recommended): Ignore these directories so they are not tracked by Git (good for large models/artifacts).
-- Option B: Add and commit them (only if small and you intentionally want them in repo).
-
-Option A — add to .gitignore and remove from index if previously tracked:
+Add ignore entries and stop tracking if previously tracked:
 ```powershell
-# Add to root .gitignore (only if not already present)
+# Add to .gitignore if missing
 $entry1 = "social-media-sentiment-analysis/models/"
 $entry2 = "social-media-sentiment-analysis/figures/"
+if (-not (Select-String -Path .\.gitignore -Pattern $entry1 -SimpleMatch -Quiet)) { Add-Content .\.gitignore $entry1 }
+if (-not (Select-String -Path .\.gitignore -Pattern $entry2 -SimpleMatch -Quiet)) { Add-Content .\.gitignore $entry2 }
 
-if (-not (Select-String -Path .\.gitignore -Pattern $entry1 -SimpleMatch -Quiet)) {
-  Add-Content .\.gitignore $entry1
-}
-if (-not (Select-String -Path .\.gitignore -Pattern $entry2 -SimpleMatch -Quiet)) {
-  Add-Content .\.gitignore $entry2
-}
-
-# Stop tracking any previously tracked files in those dirs
+# Stop tracking if they were tracked earlier (does not delete local files)
 git rm -r --cached --ignore-unmatch social-media-sentiment-analysis/models
 git rm -r --cached --ignore-unmatch social-media-sentiment-analysis/figures
 
@@ -155,46 +223,99 @@ git commit -m "chore: ignore models and figures directories"
 git push origin main
 ```
 
-Option B — add & commit (only for small files you intend to track):
+If you intentionally want to commit small models/figures, add them explicitly:
 ```powershell
 git add social-media-sentiment-analysis/models/
 git add social-media-sentiment-analysis/figures/
-git commit -m "chore: add models and figures (intended)"
+git commit -m "chore: add small model and figures"
 git push origin main
 ```
 
 ---
 
-4) Good practice: make a backup branch before complex syncs (already done, example)
-```powershell
-# Create a backup branch of current main
-git checkout -b backup-before-sync
-git push origin backup-before-sync
+## 9) Git: resolve non-fast-forward push (rejected push)
+If `git push` is rejected with `non-fast-forward`, follow this safe flow:
 
-# Go back to main
+```powershell
+# from repo root
+git fetch origin
 git checkout main
+
+# Recommended: rebase your local commits onto origin/main
+git pull --rebase origin main
+
+# resolve any conflicts if Git stops for conflicts:
+# - edit files to remove conflict markers
+# - then:
+git add .\path\to\resolved-file.py
+git rebase --continue
+
+# After rebase finishes:
+git push origin main
 ```
 
-You already created `backup-before-sync` earlier — that's good. You can delete it later if not needed.
+If you prefer merge:
+```powershell
+git pull origin main
+# fix conflicts if any, then:
+git add .\path\to\resolved-file.py
+git commit -m "Resolve merge conflicts"
+git push origin main
+```
+
+If you earlier stashed work, reapply it:
+```powershell
+git stash list
+git stash pop    # check conflicts and resolve if necessary
+```
+
+If you see credential helper warnings (`git: 'credential-manager-core' is not a git command`), install Git Credential Manager for Windows or set a helper you have:
+```powershell
+git config --global credential.helper manager-core
+# or install GCM from https://aka.ms/gcm/windows
+```
 
 ---
 
-5) Common mistakes to avoid (summary)
-- Do not type literal `<...>` placeholders in PowerShell. Use actual values or the safe scripts above.
-- Do not use `--user` when venv is active. Install packages into the venv.
-- Use `git pull --rebase origin main` for a linear history, or `git pull origin main` if you prefer merges.
-- Avoid `git push --force` unless absolutely necessary and you are certain you won't overwrite collaborators' work. Use `--force-with-lease` only with care.
+## 10) Final commit checklist & commands
+Only commit code, notebook (executed), README, requirements — avoid committing venv/data/models unless intended.
+
+Example final steps:
+```powershell
+# ensure up-to-date
+git fetch origin
+git pull --rebase origin main
+
+# add files (example set)
+git add social-media-sentiment-analysis\*.py
+git add social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb
+git add README.md
+git add requirements.txt
+
+git commit -m "chore: add sentiment analysis pipeline, sample data generator, quick training, and executed notebook"
+git push origin main
+```
 
 ---
 
-6) If you are still blocked: paste outputs here
-Please paste the full output of these three commands exactly as you run them (I will analyze and respond with the precise next commands):
+## 11) Common troubleshooting quick list
+- `No trained model...` in notebook: run `train_quick.py` to create `models/model_pipeline.joblib` and re-execute the notebook (nbconvert).
+- `pip install` WinError 32: close processes using .venv\Scripts\*, stop Jupyter processes (see step 7), or restart Windows.
+- `snscrape` errors on Python 3.14: either install snscrape from GitHub or use Python 3.11/3.12 venv. Or use sample CSV to avoid scraping.
+- Encoding artifacts (â€”): save .py and .ipynb as UTF‑8 (most editors default to UTF-8).
+
+---
+
+## If you are still blocked
+Run and paste the outputs of the following commands here (I will inspect and provide exact next commands):
 1. `git status --porcelain=1 --branch`
 2. `git log --oneline HEAD..origin/main`
 3. `Get-Process *jupyter* -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path`
+4. `Test-Path .\social-media-sentiment-analysis\models\model_pipeline.joblib` (True/False)
 
-I will read the outputs and give you the exact next commands to run to resolve conflicts / stop processes and push cleanly.
+I will analyze those outputs and tell you the precise steps to finish the workflow and get the notebook showing model predictions.
 
 ---
-```
+
+Thank you — this README consolidates the full, safe, PowerShell‑compatible workflow so you can create sample data, train a quick model, embed the outputs into a one‑cell notebook, and commit/push your project without the common pitfalls you encountered earlier.
 ```

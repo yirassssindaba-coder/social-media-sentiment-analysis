@@ -1,5 +1,4 @@
-# Virtual env
-social-media-sentiment-analysis/venv/
+﻿# Virtual env
 # Python cache
 __pycache__/
 *.pyc

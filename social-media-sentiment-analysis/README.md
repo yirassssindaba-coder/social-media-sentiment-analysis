@@ -319,3 +319,146 @@ I will analyze those outputs and tell you the precise steps to finish the workfl
 
 Thank you — this README consolidates the full, safe, PowerShell‑compatible workflow so you can create sample data, train a quick model, embed the outputs into a one‑cell notebook, and commit/push your project without the common pitfalls you encountered earlier.
 ```
+
+
+# social-media-sentiment-analysis — Commit Semua Folder (Opsi B — termasuk data, src, venv, models)
+
+PERINGATAN PENTING
+- Opsi B menambahkan semua folder ke repo (termasuk .venv / venv, data, models). Ini bukan best practice — repo bisa menjadi sangat besar, berisi file biner, file OS‑specific, atau data sensitif.
+- Pastikan tidak ada file sensitif (kunci, password, API keys) di folder yang akan di‑commit. Jika ada, hapus dulu atau pindahkan ke tempat aman.
+- GitHub menolak file >100MB. Periksa file besar sebelum commit. Jika ada file besar, gunakan Git LFS atau simpan di tempat lain (S3/GDrive/Releases).
+- Jika Anda tetap ingin melanjutkan, ikuti langkah di bawah. Langkah ini menuntun Anda melakukan commit/push lengkap dan menangani masalah umum.
+
+LANGKAH-LANGKAH (PowerShell-safe)
+
+1) Set lokasi kerja (root repo)
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+```
+
+2) Aktifkan virtualenv (opsional, untuk menjalankan skrip)
+```powershell
+. .\.venv\Scripts\Activate.ps1
+```
+
+3) Periksa status git saat ini
+```powershell
+git status
+git branch --show-current
+```
+
+4) (KRITIS) Cari file besar (> 100 MB) — GitHub tidak akan menerima file ini
+```powershell
+# Cari file lebih besar dari 100MB di working tree
+Get-ChildItem -Recurse -File | Where-Object { $_.Length -gt 100MB } | Select-Object FullName, @{Name='MB';Expression={[math]::Round($_.Length/1MB,2)}}
+```
+- Jika output ada file >100MB: jangan lanjut push tanpa tindakan. Anda harus:
+  - Hapus file tersebut dari working tree, atau
+  - Pindahkan file ke storage eksternal, atau
+  - Gunakan Git LFS (lihat langkah 7).
+
+5) Periksa isi .gitignore (opsional) — kita akan override/ubah sesuai keputusan Opsi B
+```powershell
+Get-Content .\.gitignore -ErrorAction SilentlyContinue
+```
+- Jika Anda ingin commit semuanya, hapus / comment entry yang meng-ignore venv/data/models/ (atau update `.gitignore` sesuai kebutuhan).
+
+6) Jika .gitignore masih berisi entri untuk folder yang ingin Anda commit, hapus entri tersebut.
+Contoh: menghapus baris yang meng-ignore models/ dan data/ (edit manual atau via PowerShell):
+```powershell
+# HATI-HATI: ini akan menghapus baris peng-ignore untuk models/ dan data/
+(Get-Content .\.gitignore) | Where-Object {$_ -notmatch '^(social-media-sentiment-analysis\/models\/|social-media-sentiment-analysis\/data\/|^\.venv/|^venv/)'} | Set-Content .\.gitignore
+```
+- Verifikasi ulang:
+```powershell
+Get-Content .\.gitignore
+```
+
+7) (Opsional tapi dianjurkan) Siapkan Git LFS bila ada file besar yang ingin Anda track
+- Install Git LFS (jika belum): download & install Git LFS for Windows atau gunakan winget/choco.
+- Setelah terinstall:
+```powershell
+git lfs install
+# contoh: track model binary dan data zip/npz
+git lfs track "social-media-sentiment-analysis/models/*"
+git lfs track "social-media-sentiment-analysis/data/**/*"
+git add .gitattributes
+```
+- Catatan: jika Anda sudah commit file besar sebelumnya, gunakan `git lfs migrate` (lihat bagian "Mengalihkan file yang sudah di-commit ke LFS" di bawah).
+
+8) Tambah semua file ke index (Opsi B = commit semua termasuk venv/data/models)
+```powershell
+git add -A
+```
+
+9) Commit perubahan (jika belum ada commit lokal)
+```powershell
+git commit -m "chore: add full project including data, src, venv, models, figures (Opsi B)"
+```
+- Jika git menolak commit karena tidak ada perubahan, periksa `git status --porcelain=1`.
+
+10) Sinkronisasi dengan remote sebelum push (penting)
+```powershell
+git fetch origin
+git checkout main
+# disarankan rebase untuk linear history
+git pull --rebase origin main
+```
+- Jika rebase / pull memicu konflik → perbaiki file konflik di editor → `git add <file>` → `git rebase --continue` (atau `git merge --continue` jika merge).
+
+11) Push ke remote
+```powershell
+git push origin main
+```
+- Jika push gagal karena ukuran, GitHub akan menolak. Periksa pesan error dan ikuti opsi LFS atau hapus file besar.
+
+12) Jika push ditolak karena non-fast-forward setelah Anda mengedit history, gunakan:
+```powershell
+# Hanya jika Anda yakin tidak menimpa pekerjaan orang lain
+git push --force-with-lease origin main
+```
+- Jangan gunakan `--force` tanpa memahami risikonya.
+
+Tambahan: Mengalihkan file yang sudah di‑commit ke Git LFS (jika Anda sudah commit file besar)
+- Hati‑hati: ini akan mengubah riwayat. Backup branch terlebih dahulu.
+```powershell
+# buat backup branch
+git checkout -b backup-before-lfs-migrate
+git push origin backup-before-lfs-migrate
+
+# migrasi (contoh file model)
+git lfs migrate import --include="social-media-sentiment-analysis/models/**,social-media-sentiment-analysis/data/**" --include-ref=refs/heads/main
+# lalu push (mungkin perlu --force-with-lease karena riwayat berubah)
+git push origin main --force-with-lease
+```
+- Setelah itu re-clone repo di mesin lain agar checkout benar.
+
+Membersihkan file sensitif atau besar yang tidak seharusnya masuk (jika terlanjur commit)
+- Gunakan BFG Repo-Cleaner atau `git filter-repo` untuk menghapus file dari history. Ini proses yang destruktif dan perlu koordinasi jika repo berskala tim.
+
+Cek hasil di remote / GitHub
+- Setelah berhasil push, buka GitHub repo → periksa tab Code untuk melihat folder yang Anda push.
+- Jika ada file yang gagal push karena ukuran, GitHub akan menampilkan error, dan Anda harus mengikuti langkah LFS atau menghapus file tersebut.
+
+Rekomendasi terakhir & best-practice
+- Meskipun Anda memilih Opsi B, saya tetap sarankan:
+  - Hanya commit model kecil (mis. yang < 10MB) bila benar‑benar diperlukan.
+  - Untuk model besar / data sensitif, gunakan release artifacts, cloud storage, atau Git LFS.
+  - Jangan commit virtualenv (.venv / venv) — lebih baik commit requirements.txt / environment.yml.
+  - Jika ada file sensitif yang sudah tercommit, segera gunakan BFG / filter-repo untuk menghapusnya dari history dan ubah kredensial yang terpapar.
+
+Need-to-know: credential helper warning
+- Jika Anda ingin hilangkan pesan `git: 'credential-manager-core' is not a git command`:
+  - Install Git Credential Manager: https://aka.ms/gcm/windows
+  - Atau set helper ke salah satu yang terinstal:
+    ```powershell
+    git config --global credential.helper manager-core
+    ```
+
+---
+
+Kalau Anda ingin, saya bisa:
+- Buatkan rangkaian perintah PowerShell yang langsung mengeksekusi Opsi B untuk Anda (satu file .ps1 non-interactive) — tetapi saya sarankan Anda mengecek hasil `Get-ChildItem -Recurse | Where-Object Length -gt 100MB` dulu.
+- Atau saya bisa bantu menulis skrip `git lfs migrate` aman (dengan backup branch) jika ternyata ada file >100MB yang sudah tercommit.
+
+Mau saya siapkan skrip PowerShell otomatis untuk menjalankan seluruh alur Opsi B sekarang (termasuk pengecekan file besar, men-commit, dan push)? Jika ya, konfirmasi dan saya akan sertakan skrip lengkapnya.

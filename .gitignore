@@ -15,3 +15,6 @@ social-media-sentiment-analysis/figures/
 venv/
 
 .vscode/
+
+# ignore virtual environment
+.venv/

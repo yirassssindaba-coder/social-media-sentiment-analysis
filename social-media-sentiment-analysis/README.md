@@ -1,386 +1,189 @@
-﻿\# Social Media Sentiment Analysis — README
-
-
+# Social Media Sentiment Analysis — README
 
 Ringkasan  
+Dokumen ini memberi instruksi ringkas dan aman (PowerShell) untuk memperbaiki kondisi Git yang menyebabkan banyak perubahan/pelepasan file (termasuk .venv), menyelesaikan rebase yang sedang berjalan, menghentikan pelacakan virtual environment, dan memastikan README / RUNME disimpan dan di-push ke remote tanpa error. Jalankan perintah baris-per-baris dan baca seluruh bagian sebelum mengeksekusi.
 
-Dokumen ini menjelaskan langkah‑langkah aman (PowerShell) untuk:
+PENTING: semua perintah harus dijalankan di mesin Anda. Jika Anda ragu, jangan jalankan; salin hasil `git status` dan minta bantuan. Contoh root repo di sini:
+`C:\Users\ASUS\Desktop\python-project`  
+Target project folder:
+`C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
-\- Menyimpan README.md ke folder repo `social-media-sentiment-analysis`
+Ringkasan masalah yang sering muncul (dari log Anda)
+- Rebase sedang berjalan: "You are currently editing a commit while rebasing..."
+- Banyak file .venv tercatat sebagai deleted/modified (tidak ingin commit venv ke repo)
+- .gitignore/backup dan file lain berubah
+- Git LFS diinisialisasi, tetapi rebase belum selesai
 
-\- Memeriksa `.gitignore` dan file besar di folder `results`
+Tujuan dokumen ini
+1. Aman menyelesaikan atau membatalkan rebase sehingga working tree kembali ke keadaan stabil.
+2. Membatalkan/menyembunyikan perubahan tidak diinginkan (.venv) dan berhenti melacak folder venv.
+3. Commit perubahan dokumentasi (README / RUNME) dan push ke remote tanpa error.
+4. Memberi opsi untuk membersihkan file besar jika sudah terkomit ke history.
 
-\- (Opsional) menyiapkan Git LFS untuk file besar
+Ikuti langkah berikut dalam urutan yang diberikan. Jalankan tiap baris per baris di PowerShell.
 
-\- Menjalankan notebook untuk menghasilkan keluaran ke folder `results`
+---
 
-\- Men-stage, commit, dan push perubahan ke remote
-
-
-
-Semua perintah harus dijalankan sendiri di mesin lokal Anda. Contoh path root repo pada instruksi:  
-
-`C:\\Users\\ASUS\\Desktop\\python-project`  
-
-Target file README.md:  
-
-`C:\\Users\\ASUS\\Desktop\\python-project\\social-media-sentiment-analysis\\README.md`
-
-
-
-Penting sebelum mulai
-
-\- Jalankan perintah baris-per-baris di PowerShell (jangan gabungkan dengan `\&\&`/`||`; gunakan `;` jika perlu).
-
-\- Jangan jalankan perintah yang Anda tidak pahami.
-
-\- Jika branch utama repo Anda bukan `main`, ganti `main` pada semua perintah git sesuai nama branch Anda.
-
-
-
-1\) Menyimpan README.md ke folder repo (cara mudah)
-
-\- Cara A — manual (direkomendasikan)
-
-&nbsp; 1. Buka editor teks (mis. VS Code, Notepad).
-
-&nbsp; 2. Salin seluruh isi README ini (blok markdown di bawah) lalu Save As ke:
-
-&nbsp;    `C:\\Users\\ASUS\\Desktop\\python-project\\social-media-sentiment-analysis\\README.md`
-
-
-
-\- Cara B — salin file dari lokasi lain (PowerShell, aman; memeriksa keberadaan sumber)
-
-&nbsp; 1. Sesuaikan variabel $sourcePath dengan lokasi file README sumber Anda (contoh di bawah).
-
-&nbsp; 2. Jalankan baris-per-baris ini:
-
-
-
+## A — Periksa status rebase saat ini (JANGAN LANGSUNG KOMIT)
+Dari root repo:
 ```powershell
-
-$targetDir = 'C:\\Users\\ASUS\\Desktop\\python-project\\social-media-sentiment-analysis'
-
-if (-not (Test-Path -Path $targetDir)) { New-Item -Path $targetDir -ItemType Directory -Force | Out-Null; Write-Host "Membuat folder target: $targetDir" } else { Write-Host "Folder target ada: $targetDir" }
-
-
-
-\# Ganti contoh path di bawah dengan path file README sumber Anda
-
-$sourcePath = 'C:\\Users\\ASUS\\Downloads\\README\_source.md'
-
-
-
-if (Test-Path -Path $sourcePath) {
-
-&nbsp; Copy-Item -Path $sourcePath -Destination (Join-Path $targetDir 'README.md') -Force
-
-&nbsp; Write-Host "Salin berhasil: $sourcePath → $targetDir\\README.md"
-
-} else {
-
-&nbsp; Write-Host "Sumber tidak ditemukan: $sourcePath" -ForegroundColor Yellow
-
-&nbsp; Write-Host "Untuk membuat README baru, buka editor dan simpan konten README ini ke:" -ForegroundColor Yellow
-
-&nbsp; Write-Host $targetDir
-
-}
-
-```
-
-
-
-\- Cara C — buat file kosong lalu edit:
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project\\social-media-sentiment-analysis'
-
-if (-not (Test-Path '.\\README.md')) { New-Item -Path '.\\README.md' -ItemType File -Force }
-
-\# kemudian buka file dengan editor:
-
-notepad .\\README.md   # atau: code .\\README.md untuk VS Code
-
-```
-
-
-
-2\) Periksa `.gitignore` — pastikan folder `results` tidak di-ignore
-
-Jalankan dari root repo (atau sesuaikan lokasi):
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-$patterns = @('results','social-media-sentiment-analysis/results')
-
-$found = Select-String -Path .gitignore -Pattern $patterns -SimpleMatch -ErrorAction SilentlyContinue
-
-if ($found) {
-
-&nbsp; Write-Host ".gitignore mungkin mengecualikan results — periksa isinya" -ForegroundColor Yellow
-
-&nbsp; Get-Content .\\.gitignore
-
-} else {
-
-&nbsp; Write-Host ".gitignore tidak mengecualikan results (sementara)." -ForegroundColor Green
-
-}
-
-\# (Opsional) Hapus baris ignore untuk results (backup .gitignore.bak dibuat)
-
-if ($found) {
-
-&nbsp; Copy-Item .\\.gitignore .\\.gitignore.bak -Force
-
-&nbsp; (Get-Content .\\.gitignore) |
-
-&nbsp;   Where-Object { $\_ -notmatch '(^|/)(results|social-media-sentiment-analysis/results)(/|$)' } |
-
-&nbsp;   Set-Content .\\.gitignore
-
-&nbsp; Write-Host ".gitignore diperbarui (backup .gitignore.bak dibuat)."
-
-}
-
-```
-
-
-
-3\) Periksa file besar di folder `results` (GitHub menolak file > 100 MB)
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-$bigFiles = Get-ChildItem -Path "social-media-sentiment-analysis\\results" -Recurse -File -ErrorAction SilentlyContinue |
-
-&nbsp;           Where-Object { $\_.Length -gt 100MB } |
-
-&nbsp;           Select-Object FullName, @{Name='MB';Expression={\[math]::Round($\_.Length/1MB,2)}}
-
-if ($bigFiles) {
-
-&nbsp; $bigFiles | Format-Table -AutoSize
-
-&nbsp; Write-Host "Temukan file >100MB. Pindahkan file tersebut atau gunakan Git LFS sebelum commit." -ForegroundColor Yellow
-
-} else {
-
-&nbsp; Write-Host "Tidak ada file >100MB di folder results." -ForegroundColor Green
-
-}
-
-```
-
-
-
-4\) (Opsional) Setup Git LFS untuk file besar
-
-Pastikan remote Anda mendukung Git LFS sebelum menggunakan.
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-git lfs install
-
-git lfs track "social-media-sentiment-analysis/results/\*\*"
-
-git add .gitattributes
-
-git commit -m "chore: track results via git-lfs" 2>$null
-
-```
-
-
-
-5\) Stage \& commit README.md dan file lain yang diinginkan
-
-Jalankan baris-per-baris dari root repo:
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-
-
-\# Stage README jika ada
-
-$readmePath = '.\\social-media-sentiment-analysis\\README.md'
-
-if (Test-Path $readmePath) { git add $readmePath } else { Write-Host "README.md tidak ditemukan di $readmePath" -ForegroundColor Yellow }
-
-
-
-\# (Opsional) stage notebook jika ada
-
-$notebookPath = 'social-media-sentiment-analysis\\social-media-sentiment-analysis.ipynb'
-
-if (Test-Path $notebookPath) { git add $notebookPath }
-
-
-
-\# Stage results jika folder ada (pastikan tidak ada file >100MB)
-
-if (Test-Path '.\\social-media-sentiment-analysis\\results') { git add "social-media-sentiment-analysis/results/\*" }
-
-
-
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
 git status --porcelain=1 --branch
+git rev-parse --abbrev-ref HEAD
+```
+Baca output. Jika Anda melihat pesan rebase (You are currently rebasing / editing a commit), lanjut ke bagian B. Jika tidak ada rebase, lanjut ke bagian C.
 
-git commit -m "docs: add/update README for social-media-sentiment-analysis"
+---
 
+## B — Jika rebase sedang berjalan: pilih satu opsi (lanjutkan atau batalkan)
+Catatan: jika Anda memodifikasi commit yang sedang digabungkan dan memang ingin menyelesaikannya, pilih "Lanjutkan". Jika Anda tidak sengaja memicu rebase atau tidak yakin, pilih "Abort" untuk kembali ke keadaan sebelum rebase.
+
+B1) Untuk menyelesaikan rebase (jika Anda sudah membuat perubahan yang ingin di-commit)
+- Stage perubahan yang relevan (jangan stage .venv). Contoh:
+```powershell
+# stage only safe files (README, RUNME, notebook outputs)
+git add -N .  # optional: prepare index
+git add .\social-media-sentiment-analysis\README.md
+git add .\social-media-sentiment-analysis\RUNME.md
+# jika ada file lain yang memang ingin di-commit, git add <file>
+git status --porcelain=1 --branch
+# lalu continue rebase
+git rebase --continue
+```
+Jika rebase menolak karena konflik, perbaiki konflik di file yang tercantum, lalu:
+```powershell
+git add <file-yang-diperbaiki>
+git rebase --continue
 ```
 
-Jika output commit mengatakan "nothing to commit", periksa `git status` dan ulangi `git add` untuk file yang belum distage.
-
-
-
-6\) Sinkronisasi dengan remote \& push (aman)
-
-Selalu fetch + rebase sebelum push:
-
+B2) Untuk membatalkan rebase (lebih aman bila Anda tidak yakin)
 ```powershell
+git rebase --abort
+# lalu verifikasi status
+git status --porcelain=1 --branch
+```
+Setelah abort, working tree akan dikembalikan ke keadaan sebelum rebase dimulai.
 
-git fetch origin
+---
 
-git pull --rebase --autostash origin main
+## C — Pastikan .venv tidak dilacak lagi dan pulihkan file yang tidak sengaja dihapus/di-stage
+Jika .venv telah terlanjur tercatat sebagai perubahan (modified/deleted) Anda harus:
+1. Mengembalikan file .venv dari index/working tree (jika terhapus dari working tree karena rebase/commit), atau
+2. Menghentikan pelacakan .venv (agar tidak muncul lagi).
 
-\# jika rebase meminta resolusi konflik: perbaiki file, git add <file>, git rebase --continue
+Langkah aman:
 
-git push origin main
-
-\# Jika Anda perlu menimpa remote (gunakan hanya jika paham risikonya):
-
-\# git push --force-with-lease origin main
-
+C1) Jika Anda ingin membatalkan semua perubahan ter-stage dan restore working tree ke HEAD:
+```powershell
+# HATI-HATI: ini membatalkan perubahan lokal yang belum di-commit
+# Jalankan hanya jika Anda tidak butuh perubahan lokal yang belum disimpan
+git reset --hard HEAD
+```
+Jika Anda ingin menyimpan perubahan lokal tetapi menghapus staging:
+```powershell
+git reset
+# ini membatalkan staging, tidak menghapus file di working tree
 ```
 
-Ganti `main` jika branch Anda berbeda.
-
-
-
-7\) Menjalankan notebook untuk menghasilkan outputs (menulis ke folder `results`)
-
-Aktifkan virtualenv, instal dependensi, dan eksekusi notebook:
-
+C2) Jangan commit .venv — tambahkan aturan .gitignore dan remove dari index
+- Tambahkan `.venv/` ke `.gitignore` (jika belum ada) dan commit perubahan .gitignore.
 ```powershell
+# dari root repo
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
 
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force  # jika perlu
-
-.\\.venv\\Scripts\\Activate.ps1
-
-
-
-python -m pip install -r requirements.txt
-
-
-
-\# nbconvert (inplace)
-
-python -m nbconvert --to notebook --execute "social-media-sentiment-analysis\\social-media-sentiment-analysis.ipynb" --inplace
-
-
-
-\# atau papermill (output terpisah)
-
-pip install papermill
-
-papermill "social-media-sentiment-analysis\\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\\social-media-sentiment-analysis-output.ipynb"
-
-```
-
-Setelah eksekusi, verifikasi file di `results`:
-
-```powershell
-
-Get-ChildItem -Path "social-media-sentiment-analysis\\results" -Recurse | Select-Object FullName,Length
-
-```
-
-
-
-8\) Commit \& push hasil (folder `results`)
-
-Pastikan tidak ada file >100MB lalu:
-
-```powershell
-
-Set-Location 'C:\\Users\\ASUS\\Desktop\\python-project'
-
-if (Test-Path '.\\social-media-sentiment-analysis\\results') {
-
-&nbsp; git add "social-media-sentiment-analysis/results/\*"
-
-&nbsp; git commit -m "chore: add results outputs from notebook execution"
-
-&nbsp; git pull --rebase origin main
-
-&nbsp; git push origin main
-
+# tambahkan .venv ke .gitignore jika belum ada
+if (-not (Select-String -Path .gitignore -Pattern '(^|/)\.venv(/|$)' -SimpleMatch -Quiet) ) {
+  Add-Content -Path .gitignore -Value "`n# ignore virtual environment`n.venv/"
+  Write-Host ".venv/ ditambahkan ke .gitignore"
 } else {
-
-&nbsp; Write-Host "Tidak ada folder results untuk di-commit." -ForegroundColor Yellow
-
+  Write-Host ".venv/ sudah ada di .gitignore"
 }
 
+# hapus venv dari index (git akan tetap membiarkan folder di working tree lokal)
+git rm -r --cached --ignore-unmatch "social-media-sentiment-analysis/.venv" || Write-Host "No cached venv to remove"
+git add .gitignore
+git commit -m "chore: stop tracking .venv and update .gitignore" || Write-Host "Nothing to commit for .gitignore"
 ```
 
+Catatan: git rm --cached hanya menghapus file dari index (tracking); file tetap ada di disk. Jika beberapa file .venv sudah ter-commit dan Anda perlu menghapusnya dari history, lihat bagian "Hapus file besar dari history" di bawah.
 
-
-9\) Verifikasi remote (web UI atau clone sementara)
-
-\- Web: buka  
-
-&nbsp; https://github.com/yirassssindaba-coder/python-project/tree/main/social-media-sentiment-analysis/results
-
-
-
-\- Atau clone sementara untuk memeriksa:
-
+C3) Jika file .venv hilang dari working tree dan Anda perlu memulihkan environment:
+- Jangan restore .venv dari repo — buat ulang virtualenv:
 ```powershell
-
-cd $env:TEMP
-
-git clone https://github.com/yirassssindaba-coder/python-project.git tmp-check
-
-cd tmp-check
-
-git ls-files "social-media-sentiment-analysis/results" | Select-Object -First 200
-
+# buat ulang venv lokal
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt   # jika ada
 ```
 
+---
 
+## D — Commit README / RUNME dan push (urutan aman)
+Setelah rebase diselesaikan atau abort, dan setelah .venv di-untrack, lakukan commit dokumen dengan aman.
 
-10\) Opsi tambahan yang bisa saya bantu
+1) Stage dan commit file dokumentasi saja:
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+git add .\social-media-sentiment-analysis\README.md
+git add .\social-media-sentiment-analysis\RUNME.md
+git status --porcelain=1 --branch
+git commit -m "docs: add/update README and RUNME for social-media-sentiment-analysis"
+```
 
-\- "Buat skrip salin" — skrip PowerShell untuk menyalin README dari sumber lokal ke folder repo dan menampilkan dry‑run (file yang akan distage serta file >100MB).  
+2) Fetch & rebase remote, lalu push:
+```powershell
+git fetch origin
+git pull --rebase --autostash origin main
+# jika rebase meminta resolusi konflik: perbaiki file, git add <file>, git rebase --continue
+git push origin main
+```
 
-\- "Buat skrip salin \& commit" — skrip yang juga menjalankan git add/commit/push (opsional; berisiko).  
+Jika Anda bekerja di branch lain, ganti `main` dengan nama branch Anda.
 
-\- "Dry-run saja" — saya tampilkan daftar file yang akan distage dan file >100MB tanpa melakukan commit.
+---
 
+## E — Jika file besar sudah ter-commit ke history (lebih lanjut / opsional)
+Jika file .venv atau file >100MB sudah pernah di-commit (masuk ke history remote), Anda perlu membersihkannya dari history menggunakan BFG atau git filter-repo. Ini operasi berisiko karena memodifikasi history — koordinasikan dengan tim.
 
+Contoh ringkas (gunakan BFG jar):
+1. Install BFG (https://rtyley.github.io/bfg-repo-cleaner/).
+2. Jalankan:
+```bash
+# contoh (linux/macos) — pada Windows gunakan Git Bash atau adaptasi
+bfg --delete-folders .venv --delete-files '*.pyc' --no-blob-protection
+git reflog expire --expire=now --all && git gc --prune=now --aggressive
+git push --force-with-lease origin main
+```
+JANGAN jalankan ini tanpa memahami konsekuensi — ini menulis ulang history.
 
-Tips Keamanan \& Troubleshooting
+---
 
-\- Backup `.gitignore` sebelum mengubahnya.
+## F — Periksa lagi status & bersihkan sisa
+Setelah semua langkah:
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+git status --porcelain=1 --branch
+git ls-files | Select-String '\.venv' -SimpleMatch -Quiet
+if ($LASTEXITCODE -eq 0) { Write-Host "Masih ada file .venv yang ter-track — periksa ulang" -ForegroundColor Yellow } else { Write-Host ".venv tidak ter-track." -ForegroundColor Green }
+```
 
-\- Jangan push file >100MB tanpa Git LFS.
+---
 
-\- Jika rebase menghasilkan konflik: perbaiki file yang konflik, git add <file>, git rebase --continue.
+## Ringkasan urutan perintah yang aman (ceklist singkat)
+1. Periksa status: `git status --porcelain=1 --branch`
+2. Jika rebase berjalan dan Anda tidak ingin melanjutkan: `git rebase --abort`
+3. Tambahkan .venv ke .gitignore, hapus dari index: `git rm -r --cached social-media-sentiment-analysis/.venv`
+4. Commit .gitignore change.
+5. Stage & commit README/RUNME.
+6. `git pull --rebase --autostash origin main`
+7. `git push origin main`
 
-\- Jika PowerShell menolak menjalankan skrip: jalankan `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` (hanya untuk sesi ini) dan pahami risikonya.
+---
 
+Jika Anda mau, saya bisa:
+- Hasilkan skrip PowerShell `.ps1` yang menjalankan urutan di atas dengan opsi interaktif (tanya sebelum `rebase --abort`, sebelum `git rm --cached`, sebelum `push`).
+- Atau bantu menyiapkan instruksi untuk membersihkan history bila file besar sudah masuk ke remote.
 
-
-Terima kasih — saya sudah merapikan README supaya aman dan bebas error bila Anda mengikuti langkah-langkah di atas. Jalankan perintah baris‑per‑baris di PowerShell; jika Anda mau, saya bisa membuatkan skrip `.ps1` yang otomatis menyalin README dari sumber lokal dan menjalankan dry‑run atau otomatisasi git (sebutkan: "Buat skrip salin", "Buat skrip salin \& commit", atau "Dry-run saja").
-
+Apa yang Anda inginkan sekarang: saya buatkan skrip `.ps1` interaktif, atau Anda akan menjalankan perintah manual satu-per-satu?  
+```

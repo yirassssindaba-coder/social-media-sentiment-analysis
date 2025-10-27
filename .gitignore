@@ -21,3 +21,6 @@ venv/
 
 # ignore virtual environment
 .venv/
+
+# ignore virtual environment
+.venv/

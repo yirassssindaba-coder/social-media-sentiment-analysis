@@ -1,80 +1,156 @@
 # Social Media Sentiment Analysis — README
 
 Ringkasan singkat  
-Dokumen ini menjelaskan penyebab error PowerShell / Papermill yang Anda alami (mis. penggunaan heredoc/bash-style `<<'PY'` di PowerShell dan Papermill error "No kernel name found in notebook"), lalu memberi langkah-langkah praktis dan PowerShell‑friendly untuk memperbaiki notebook metadata, menjalankan Papermill, dan melakukan operasi Git dengan aman (tanpa operator bash seperti `||` dan tanpa placeholder `<...>`). Semua contoh disajikan agar bisa disalin langsung dan dijalankan baris‑per‑baris di PowerShell.
+Dokumen ini memberi instruksi PowerShell‑friendly dan langkah‑demi‑langkah untuk:
+1. Menyimpan README / RUNME ke folder project,
+2. Menyiapkan virtual environment dan dependensi,
+3. Memperbaiki error Papermill "No kernel name found" tanpa heredoc,
+4. Menjalankan notebook untuk menghasilkan keluaran ke folder `results`,
+5. Memeriksa file besar dan mengatur Git LFS (opsional),
+6. Menghindari commit `.venv` dan melakukan stage/commit/push yang aman.
 
-Penting
-- Jangan jalankan baris yang Anda tidak pahami.
-- Jalankan perintah baris‑per‑baris di PowerShell (tidak menempelkan semuanya sekali jalan bila Anda ragu).
-- Ganti path contoh jika repo Anda berada di lokasi berbeda.
-- Jika branch utama Anda bukan `main`, ganti `main` pada semua command git.
+Semua perintah ditujukan dijalankan baris‑per‑baris di PowerShell pada mesin lokal. Ganti path contoh jika perlu. Jika branch utama Anda bukan `main`, ganti `main` pada semua perintah git.
 
-Masalah yang Anda lihat (penyebab)
-- Anda mencoba menjalankan sintaks heredoc/bash-style:
-  python - <<'PY' ... PY
-  PowerShell tidak mendukung sintaks itu — `<'` diperlakukan sebagai operator dan menghasilkan ParserError.
-- Papermill error:
-  ValueError: No kernel name found in notebook and no override provided.
-  Artinya notebook tidak memiliki metadata kernelspec.name sehingga Papermill tidak tahu kernel apa yang dipakai.
+1) Persyaratan awal
+1.1 Pastikan Git dan Python (3.8+) terpasang.  
+1.2 Disarankan membuat virtual environment `.venv` di root repo: `C:\Users\ASUS\Desktop\python-project`.  
+1.3 Jalankan perintah ini dari PowerShell (baris‑per‑baris):
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+```
 
-Solusi ringkas
-1. Hindari heredoc di PowerShell. Untuk menjalankan skrip Python dari PowerShell, simpan skrip ke file sementara (.py) lalu jalankan `python script.py`.
-2. Tambahkan kernelspec ke metadata notebook (via Jupyter UI atau script Python) atau jalankan Papermill dengan opsi `--kernel <kernel_name>`.
-3. Pastikan paket yang dibutuhkan (nbformat, papermill, ipykernel) terinstal di venv yang Anda pakai.
-4. Jangan gunakan operator `||` atau placeholder `<file>` di PowerShell — gunakan if/else dan nama file nyata.
+2) Menyimpan README.md / RUNME.md ke folder project
+Pilih salah satu metode di bawah.
 
-Panduan langkah‑per‑langkah (PowerShell-friendly)
-Ikuti langkah berikut dari root repo Anda (contoh path root dipakai di semua contoh):
-`C:\Users\ASUS\Desktop\python-project`
+2.1 Cara A — manual (direkomendasikan)  
+- Buka editor (VS Code, Notepad).  
+- Salin isi file README ini dan Save As ke:
+  `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis\README.md`
 
-A. Aktifkan virtual environment
+2.2 Cara B — salin dari file sumber (PowerShell-safe)
+```powershell
+$targetDir = 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
+if (-not (Test-Path $targetDir)) { New-Item -Path $targetDir -ItemType Directory -Force | Out-Null }
+$sourcePath = 'C:\path\to\your\README_source.md'  # GANTI dengan path nyata
+if (Test-Path $sourcePath) {
+  Copy-Item -Path $sourcePath -Destination (Join-Path $targetDir 'README.md') -Force
+  Write-Host "README.md disalin ke $targetDir"
+} else {
+  Write-Host "Sumber tidak ditemukan: $sourcePath" -ForegroundColor Yellow
+}
+```
+
+2.3 Cara C — buat file kosong lalu edit (ditambahkan sesuai permintaan)
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
+if (-not (Test-Path '.\README.md')) { New-Item -Path '.\README.md' -ItemType File -Force }
+notepad .\README.md   # atau: code .\README.md untuk VS Code
+```
+> Catatan: gunakan Cara C juga untuk membuat `RUNME.md` bila perlu (ganti nama file).
+
+3) Buat & aktifkan virtual environment
+3.1 Jalankan dari root repo:
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
 
-# jika Anda menggunakan .venv di root repo:
+# buat venv jika belum ada
+if (-not (Test-Path '.\.venv')) { python -m venv .venv }
+
+# aktifkan (PowerShell)
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force  # bila perlu
 .\.venv\Scripts\Activate.ps1
 
-# pastikan python bekerja
+# verifikasi
 python --version
+pip --version
 ```
 
-B. Pastikan dependensi Python terpasang
+4) Instal dependensi penting
 ```powershell
 python -m pip install --upgrade pip
-python -m pip install nbformat papermill ipykernel
+python -m pip install nbformat papermill ipykernel jupyter
+# jika ada requirements:
+if (Test-Path '.\requirements.txt') { python -m pip install -r .\requirements.txt }
+if (Test-Path '.\social-media-sentiment-analysis\requirements.txt') { python -m pip install -r .\social-media-sentiment-analysis\requirements.txt }
 ```
 
-C. Backup notebook sebelum mengubah metadata
+5) Periksa `.gitignore` dan folder `results` dengan aman
+5.1 Pastikan folder `results` tidak di‑ignore (atau sengaja di‑ignore sesuai kebutuhan):
 ```powershell
-$nbPath = 'social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb'
-if (-not (Test-Path $nbPath)) {
-  Write-Host "Notebook not found: $nbPath" -ForegroundColor Red
-  return
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+Select-String -Path .gitignore -Pattern "results","social-media-sentiment-analysis/results" -SimpleMatch -ErrorAction SilentlyContinue
+if ($?) { Write-Host ".gitignore mungkin mengecualikan results — periksa isinya" -ForegroundColor Yellow } else { Write-Host ".gitignore tidak mengecualikan results (sementara)." -ForegroundColor Green }
+```
+
+5.2 Solusi aman untuk memeriksa folder `results` tanpa error "path not found":
+```powershell
+$repoRoot   = 'C:\Users\ASUS\Desktop\python-project'
+$projectDir = Join-Path $repoRoot 'social-media-sentiment-analysis'
+$resultsDir = Join-Path $projectDir 'results'
+$autoCreateMissingFolders = $false   # ubah ke $true jika ingin auto-create
+
+if (-not (Test-Path $repoRoot)) { Write-Host "Repo root tidak ditemukan: $repoRoot" -ForegroundColor Red; return }
+if (-not (Test-Path $projectDir)) { Write-Host "Project folder tidak ditemukan: $projectDir" -ForegroundColor Yellow; return }
+
+if (-not (Test-Path $resultsDir)) {
+  Write-Host "Folder results tidak ditemukan: $resultsDir" -ForegroundColor Yellow
+  if ($autoCreateMissingFolders) {
+    New-Item -Path $resultsDir -ItemType Directory -Force | Out-Null
+    Write-Host "Membuat folder results kosong: $resultsDir" -ForegroundColor Green
+  } else {
+    Write-Host "Lewati pemeriksaan file results (folder tidak ada)." -ForegroundColor Yellow
+  }
+} else {
+  Get-ChildItem -Path $resultsDir -Recurse -File -ErrorAction SilentlyContinue |
+    Select-Object FullName, @{Name='MB';Expression={[math]::Round($_.Length/1MB,2)}} |
+    Format-Table -AutoSize
 }
-Copy-Item -Path $nbPath -Destination ($nbPath + '.bak') -Force
-Write-Host "Backup created: $nbPath.bak"
 ```
 
-D. Tambahkan kernelspec ke notebook (PowerShell‑safe)
-- Cara yang paling sederhana: buka notebook di JupyterLab/Notebook, pilih Kernel → Change kernel → pilih (mis. Python 3), lalu Save.
-- Jika Anda ingin otomatis (tanpa membuka UI), simpan dan jalankan skrip Python sementara dari PowerShell — contoh berikut membuat file Python sementara yang memperbarui metadata kernelspec menjadi "python3". Ganti `"python3"` jika kernel Anda berbeda.
-
+5.3 Cari file >100MB (jika folder ada):
 ```powershell
-# buat file Python sementara (PowerShell here-string aman)
+if (Test-Path $resultsDir) {
+  Get-ChildItem -Path $resultsDir -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Length -gt 100MB } |
+    Select-Object FullName, @{Name='MB';Expression={[math]::Round($_.Length/1MB,2)}}
+}
+```
+
+6) (Opsional) Setup Git LFS untuk file besar
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+git lfs install
+git lfs track "social-media-sentiment-analysis/results/**"
+git add .gitattributes
+$staged = git diff --cached --name-only
+if ($staged) { git commit -m "chore: track results via git-lfs" } else { Write-Host "No .gitattributes changes to commit." -ForegroundColor Yellow }
+```
+
+7) Menjalankan notebook — menghindari error Papermill "No kernel name found"
+7.1 Penyebab: notebook tidak memiliki metadata `kernelspec.name`. Hindari menggunakan heredoc `<<'PY'` di PowerShell.
+
+7.2 Solusi A — perbaiki via Jupyter UI (direkomendasikan)
+- Aktifkan venv, jalankan `jupyter notebook` atau `jupyter lab`, buka notebook, pilih Kernel → Change kernel → pilih Python kernel (mis. Python 3), lalu Save.
+
+7.3 Solusi B — otomatis via file Python sementara (PowerShell-safe)
+Salin baris‑per‑baris berikut (tidak menggunakan heredoc):
+```powershell
+# backup notebook
+$nbPath = 'social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb'
+if (-not (Test-Path $nbPath)) { Write-Host "Notebook tidak ditemukan: $nbPath" -ForegroundColor Red; return }
+Copy-Item -Path $nbPath -Destination ($nbPath + '.bak') -Force
+Write-Host "Backup dibuat: $nbPath.bak"
+
+# buat skrip Python sementara untuk menambahkan kernelspec (ubah "python3" jika perlu)
 $pyScript = @'
 import nbformat
 from pathlib import Path
-
 nb_path = Path("social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb")
 nb = nbformat.read(str(nb_path), as_version=4)
-
-# Jika metadata kernelspec tidak ada atau kosong, set default "python3" (ubah jika perlu)
 ks = nb.metadata.get("kernelspec", {})
 ks.setdefault("name", "python3")
 ks.setdefault("display_name", "Python 3")
 nb.metadata["kernelspec"] = ks
-
 nbformat.write(nb, str(nb_path))
 print("Updated kernelspec in", nb_path)
 '@
@@ -83,15 +159,14 @@ $tempPy = Join-Path $env:TEMP 'update_kernelspec.py'
 Set-Content -Path $tempPy -Value $pyScript -Encoding UTF8
 Write-Host "Temporary Python script written to $tempPy"
 
-# jalankan skrip Python untuk memperbarui notebook
+# jalankan skrip
 python $tempPy
-# (opsional) hapus file sementara setelah sukses:
+
+# (opsional) hapus skrip sementara
 # Remove-Item -Path $tempPy -Force
 ```
 
-E. Verifikasi metadata kernelspec (PowerShell‑safe)
-Jika Anda ingin memeriksa metadata, gunakan file Python sementara juga (atau jalankan satu‑baris Python melalui PowerShell dengan argumen file):
-
+7.4 Verifikasi kernelspec (opsional)
 ```powershell
 $checkScript = @'
 import nbformat
@@ -101,74 +176,58 @@ print("kernelspec:", nb.metadata.get("kernelspec"))
 $checkPy = Join-Path $env:TEMP 'check_kernelspec.py'
 Set-Content -Path $checkPy -Value $checkScript -Encoding UTF8
 python $checkPy
-# Remove-Item $checkPy -Force  # hapus jika ingin
+# Remove-Item $checkPy -Force  # opsional
 ```
 
-F. Jalankan Papermill (gunakan --kernel jika ingin override)
-Setelah kernelspec terpasang atau jika Anda mau override, jalankan papermill:
-
+7.5 Jalankan Papermill (PowerShell-safe)
 ```powershell
-# Option A: jalankan dan biarkan Papermill membaca kernelspec dari notebook
+# Option A: biarkan papermill baca kernelspec dari notebook
 papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb"
 
-# Option B: jalankan dengan opsi --kernel (jika notebook masih tidak berisi kernelspec atau Anda ingin override)
+# Option B: override kernel jika mau
 papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb" --kernel "python3"
 ```
-
-Jika Anda tidak yakin nama kernel, periksa:
+Jika kernel belum terdaftar, daftarkan dari venv:
 ```powershell
-jupyter kernelspec list
-```
-Gunakan salah satu "kernel name" yang terdaftar (mis. python3, py310, dll) pada argumen `--kernel`.
-
-G. Menangani error papermill lain
-- Jika Papermill mengeluarkan error terkait kernel tidak ditemukan, pastikan kernel tersedia di environment yang sedang aktif. Jika perlu, register kernel dari venv:
-```powershell
-# jalankan saat venv aktif
 python -m ipykernel install --user --name python3 --display-name "Python 3"
 ```
 
-H. Git & .venv — hindari commit venv dan jangan gunakan `||`
-PowerShell tidak menerima `||`. Gunakan kontrol alur PowerShell untuk commit conditional.
-
-Langkah aman: hapus .venv dari index (tracking) jika pernah ter-track, tambahkan ke .gitignore, dan commit hanya bila ada perubahan staged.
-
+8) Alternatif: jalankan notebook tanpa Papermill
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
+python -m nbconvert --to notebook --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --inplace
+```
 
-# Hapus .venv dari index jika ter-track (tidak menghapus file di disk)
+9) Hentikan pelacakan `.venv` dan perbarui `.gitignore` (aman)
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
 $venvRel = 'social-media-sentiment-analysis/.venv'
-# gunakan git ls-files untuk mengetahui apakah ada file yang ter-track
 & git ls-files --error-unmatch -- $venvRel 2>$null
 if ($LASTEXITCODE -eq 0) {
   Write-Host "Removing tracked .venv from index..."
   & git rm -r --cached --ignore-unmatch -- $venvRel
 } else {
-  Write-Host "No tracked .venv files found in index."
+  Write-Host "No tracked .venv found in index."
 }
 
-# Pastikan .venv/ ada di .gitignore
 $gitignore = Join-Path (Get-Location) '.gitignore'
 if (-not (Test-Path $gitignore)) { New-Item -Path $gitignore -ItemType File -Force | Out-Null }
-$hasVenv = Select-String -Path $gitignore -Pattern '(^|/)\.venv(/|$)' -SimpleMatch -Quiet
+$hasVenv = Select-String -Path $gitignore -Pattern '\.venv' -SimpleMatch -Quiet
 if (-not $hasVenv) {
   Add-Content -Path $gitignore -Value "`n# ignore virtual environment`n.venv/"
-  & git add .gitignore
-  # Commit only if there are staged changes
+  & git add $gitignore
   $staged = & git diff --cached --name-only
   if ($staged -and $staged.Trim().Length -gt 0) {
     & git commit -m "chore: stop tracking .venv and update .gitignore"
   } else {
-    Write-Host "No changes staged to commit for .gitignore."
+    Write-Host "No .gitignore changes to commit."
   }
 } else {
-  Write-Host ".venv/ already present in .gitignore"
+  Write-Host ".venv already present in .gitignore"
 }
 ```
 
-I. Men‑stage, commit, dan push perubahan dokumentasi & results (PowerShell-safe)
-Contoh alur yang aman—cek keberadaan file dulu, stage hanya jika ada, commit jika ada staged changes:
-
+10) Stage, commit, push secara aman (PowerShell-safe)
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
 
@@ -177,39 +236,37 @@ $runme  = '.\social-media-sentiment-analysis\RUNME.md'
 $results = '.\social-media-sentiment-analysis\results'
 $notebookOut = '.\social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb'
 
-if (Test-Path $readme) { & git add $readme } else { Write-Host "README not found; skipping." }
-if (Test-Path $runme)  { & git add $runme  } else { Write-Host "RUNME not found; skipping." }
+if (Test-Path $readme) { & git add $readme } else { Write-Host "README not found; skipping." -ForegroundColor Yellow }
+if (Test-Path $runme)  { & git add $runme  } else { Write-Host "RUNME not found; skipping." -ForegroundColor Yellow }
 if (Test-Path $notebookOut) { & git add $notebookOut }
-if (Test-Path $results) { & git add "$results\*" } else { Write-Host "No results to stage." }
+if (Test-Path $results) { & git add "$results\*" } else { Write-Host "No results to stage." -ForegroundColor Yellow }
 
 $staged = & git diff --cached --name-only
 if ($staged -and $staged.Trim().Length -gt 0) {
   & git commit -m "docs: add/update README and run outputs"
   & git fetch origin
   & git pull --rebase --autostash origin main
-  # Resolve conflicts manually if prompted, then:
-  # & git rebase --continue
+  # jika konflik: perbaiki file, git add "path\to\file", lalu: git rebase --continue
   & git push origin main
 } else {
   Write-Host "Nothing to commit (no staged changes)." -ForegroundColor Yellow
 }
 ```
 
-J. Kenapa error parser muncul sebelumnya (penutup)
-- `python - <<'PY'` adalah sintaks shell heredoc yang *bukan* PowerShell; PowerShell mem-parsing `<` sebagai operator → ParserError.
-- Menulis kode Python ke file sementara dan menjalankannya dengan `python script.py` adalah metode cross-platform dan PowerShell‑safe.
-- Jangan gunakan `||` di PowerShell — gunakan if/else dan periksa `$LASTEXITCODE` atau `git diff --cached --name-only`.
+11) Troubleshooting singkat
+- ParserError di PowerShell: jangan tempel sintaks bash (`||`, `&&`, heredoc `<<`, placeholder `<...>`). Gunakan bentuk PowerShell yang disediakan.  
+- Papermill "No kernel name found": perbaiki metadata kernelspec (bagian 7) atau gunakan `--kernel`.  
+- Papermill "kernel not found": jalankan `jupyter kernelspec list` dan register kernel dari venv (`python -m ipykernel install --user --name <name> --display-name "<display>"`).  
+- Jika rebase aktif: `git status` → `git rebase --abort` (jika ingin membatalkan) atau setelah menyelesaikan konflik dan `git add` → `git rebase --continue`.
 
-K. Troubleshooting singkat
-- Papermill masih error "No kernel name": jalankan langkah D (update kernelspec) atau gunakan `--kernel`.
-- Papermill error "kernel not found": daftar kernel dengan `jupyter kernelspec list` dan daftarkan kernel yang sesuai dari venv (`python -m ipykernel install --user --name <name> --display-name "<display>"`).
-- Git rebase sedang berjalan: `git status` → jika ingin abort: `git rebase --abort`; jika sudah menyelesaikan konflik dan staging, `git rebase --continue`.
-- Jika Anda melihat ParserError di PowerShell: periksa apakah Anda menempelkan sintaks bash (heredoc `<<`, `||`, `&&`, atau `<file>` placeholders). Gunakan bentuk PowerShell yang saya tunjukkan di atas.
+12) Opsi skrip otomatis (opsional)
+Saya dapat menyediakan skrip PowerShell siap pakai:
+- `update_kernelspec_and_run.ps1` — backup notebook, update kernelspec (temporary .py), run papermill (dengan `--kernel` option), dan tampilkan hasil.  
+- `create_runme_and_push.ps1` — salin RUNME, dry‑run (tampilkan file besar & file yang akan distage), lalu (opsional) commit/push.  
+- `fix-venv-and-git.ps1` — menghapus .venv dari index, memperbarui .gitignore, commit jika perlu.
+
+Ketik pilihan Anda: "Buat update_kernelspec_and_run.ps1", "Buat create_runme_and_push.ps1", atau "Buat fix-venv-and-git.ps1" — saya akan buatkan skrip lengkap interaktif yang aman.
 
 ---
 
-Jika Anda ingin, saya dapat:
-- Menghasilkan file PowerShell siap‑pakai (contoh: `update_kernelspec_and_run.ps1`) yang melakukan seluruh alur: backup notebook → update kernelspec → run papermill (dengan opsi --kernel) → dry‑run stage → commit/push (opsional). Saya akan membuat versi interaktif yang meminta konfirmasi sebelum commit/push.
-- Atau, jika Anda mau, kirimkan output `git status --porcelain=1 --branch` dan hasil percobaan papermill terbaru — saya akan susun perintah tepat untuk kondisi repo Anda.
-
-Terima kasih — README ini sudah diperbarui agar bebas dari sintaks yang menyebabkan error di PowerShell dan menyertakan solusi praktis untuk error Papermill "No kernel name found". Ikuti langkah‑langkah di atas baris‑per‑baris. ````
+Terima kasih — README ini dirancang untuk mudah disalin, dicetak, dan dijalankan di PowerShell tanpa menimbulkan error parser atau Papermill terkait kernel. Ikuti langkah‑langkah berangka di atas baris‑per‑baris.````

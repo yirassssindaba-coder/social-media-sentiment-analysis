@@ -1,4 +1,4 @@
-﻿# Virtual env
+# Virtual env
 # Python cache
 __pycache__/
 *.pyc
@@ -9,3 +9,9 @@ data/
 social-media-sentiment-analysis/rename_notebooks.py
 social-media-sentiment-analysis/rename_notebooks.py
 social-media-sentiment-analysis/figures/
+
+.venv/
+
+venv/
+
+.vscode/

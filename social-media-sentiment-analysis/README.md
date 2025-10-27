@@ -1,284 +1,247 @@
 # Social Media Sentiment Analysis — README
 
-Ringkasan  
-Dokumen ini adalah README lengkap untuk folder `social-media-sentiment-analysis`. Berisi instruksi aman (PowerShell) untuk:
-- Menyimpan README dan RUNME ke folder project,
-- Memeriksa dan memperbarui .gitignore,
-- Menangani file besar (cek >100MB) dan opsi Git LFS,
-- Menjalankan notebook untuk menghasilkan keluaran ke folder `results`,
-- Stage, commit, rebase, dan push ke remote dengan cara yang aman,
-- Menghentikan pelacakan virtual environment (.venv) agar tidak tercatat di Git.
+Tujuan singkat  
+Dokumen ini berisi instruksi aman (PowerShell / Python) untuk:
+- Menjalankan notebook dan menghindari error papermill "No kernel name found",
+- Menghindari error PowerShell umum (mis. penggunaan `||` atau `<...>`),
+- Menangani .venv agar tidak tercatat di Git,
+- Stage / commit / push perubahan secara aman (tanpa operator shell non-PowerShell),
+- Menjalankan pemeriksaan file besar di folder results.
 
-Semua perintah harus dijalankan sendiri di mesin lokal Anda, baris per baris. Contoh path root repo pada instruksi ini:
-`C:\Users\ASUS\Desktop\python-project`  
-Lokasi project:  
-`C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
+Baca seluruh dokumen lalu jalankan perintah baris‑per‑baris di PowerShell pada mesin Anda. Jangan jalankan perintah yang Anda tidak pahami. Ganti path contoh dengan path nyata bila perlu.
 
-Penting sebelum mulai
-- Jangan jalankan perintah yang Anda tidak pahami.
-- Jalankan perintah baris-per-baris di PowerShell (jangan gunakan shell-operator non-PowerShell seperti `||` atau tanda `<...>`).
-- Jika branch utama bukan `main`, ganti semua contoh `main` sesuai branch Anda.
-- README ini tidak menulis ulang riwayat Git — langkah itu berisiko dan dijelaskan terpisah jika diperlukan.
+Lokasi contoh repo:
+- Root repo: `C:\Users\ASUS\Desktop\python-project`
+- Project folder: `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis`
 
 ---
 
-## 1. Simpan README.md di folder project
-Metode (pilih salah satu):
+## 1) Penyebab dan solusi error Papermill: "No kernel name found in notebook and no override provided."
 
-Cara A — manual (direkomendasikan)
-1. Buka editor (VS Code, Notepad).
-2. Simpan file ini sebagai:
-   `C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis\README.md`
+Pesan error penuh:
+ValueError: No kernel name found in notebook and no override provided.
 
-Cara B — salin dari file sumber (aman)
-Buka PowerShell dan jalankan baris-per-baris (sesuaikan $sourcePath):
+Arti: notebook (.ipynb) tidak memiliki metadata kernelspec.name, sehingga papermill tidak tahu kernel mana yang dipakai. Solusi:
+- Beri kernel pada notebook (metadata kernelspec), atau
+- Panggil papermill dengan opsi `--kernel <kernel_name>`.
+
+Langkah-langkah perbaikan (pilih salah satu):
+
+A. Perbaiki kernel via Jupyter UI (paling mudah)
+1. Buka notebook di Jupyter Notebook / JupyterLab:
+   - Jalankan: `jupyter notebook` atau `jupyter lab` dari root repo virtualenv aktif.
+2. Buka notebook yang dimaksud, menu Kernel → Change kernel → pilih kernel (mis. Python 3).
+3. Simpan notebook. Notebook sekarang memiliki metadata kernelspec.
+
+B. Tentukan kernel saat memanggil papermill
+Jalankan (PowerShell):
 ```powershell
-$targetDir = 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
-if (-not (Test-Path $targetDir)) {
-  New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
-  Write-Host "Created: $targetDir"
-} else {
-  Write-Host "Target exists: $targetDir"
-}
-
-$sourcePath = 'C:\Users\ASUS\Downloads\README_source.md'  # GANTI dengan path nyata
-if (Test-Path $sourcePath) {
-  Copy-Item -Path $sourcePath -Destination (Join-Path $targetDir 'README.md') -Force
-  Write-Host "Copied: $sourcePath -> $targetDir\README.md"
-} else {
-  Write-Host "Source not found: $sourcePath" -ForegroundColor Yellow
-}
+# contoh: gunakan kernel bernama 'python3' (periksa daftar kernel di bawah)
+papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb" --kernel "python3"
 ```
 
-Cara C — buat file kosong lalu edit:
+C. Periksa daftar kernel yang tersedia
 ```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project\social-media-sentiment-analysis'
-if (-not (Test-Path '.\README.md')) { New-Item -Path '.\README.md' -ItemType File -Force }
-notepad .\README.md   # atau: code .\README.md
+jupyter kernelspec list
 ```
+Gunakan salah satu nama kernel dari daftar (kolom "kernel name") pada argumen `--kernel`.
+
+D. Memperbarui metadata notebook lewat skrip Python (otomatis)
+Jika Anda ingin menulis kernelspec langsung ke notebook tanpa membuka UI, jalankan skrip Python ini (PowerShell):
+```powershell
+# sesuaikan nama kernel 'python3' bila perlu
+python - <<'PY'
+import nbformat, sys
+from pathlib import Path
+nb_path = Path("social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb")
+nb = nbformat.read(str(nb_path), as_version=4)
+# set kernelspec if missing
+nb.metadata.setdefault("kernelspec", {})["name"] = nb.metadata.get("kernelspec", {}).get("name","python3")
+nb.metadata["kernelspec"]["display_name"] = nb.metadata["kernelspec"].get("display_name","Python 3")
+nbformat.write(nb, str(nb_path))
+print("Updated kernelspec in", nb_path)
+PY
+```
+Setelah menjalankan, coba ulangi papermill tanpa `--kernel`, atau tetap gunakan `--kernel` untuk kepastian.
 
 ---
 
-## 2. Periksa dan perbarui .gitignore agar .venv tidak ter-track
-Pastikan virtual environment tidak dilacak dan folder `results` tidak di-ignore.
+## 2) Hindari error PowerShell: jangan pakai `||` atau placeholder `<file>` langsung
 
-Periksa .gitignore untuk `.venv` dan `results`:
+PowerShell tidak menerima `||` (bash operator) dan menganggap `<...>` sebagai token khusus. Gunakan alur kontrol PowerShell (if/else) dan path nyata.
+
+Contoh yang MENYEBABKAN error (jangan pakai):
 ```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project'
-Select-String -Path .gitignore -Pattern ".venv","results" -SimpleMatch -ErrorAction SilentlyContinue
+git commit -m "msg" || Write-Host "Nothing to commit"
+git add <file-yang-diperbaiki>
 ```
 
-Tambahkan aturan `.venv/` jika belum ada:
+Contoh yang BENAR (PowerShell-safe):
 ```powershell
-$gitignorePath = '.\ .gitignore'.Trim()
-# buat .gitignore jika tidak ada
-if (-not (Test-Path $gitignorePath)) { New-Item -Path $gitignorePath -ItemType File -Force | Out-Null }
-$hasVenv = Select-String -Path $gitignorePath -Pattern '(^|/)\.venv(/|$)' -SimpleMatch -Quiet
-if (-not $hasVenv) {
-  Add-Content -Path $gitignorePath -Value "`n# ignore virtual environment`n.venv/"
-  Write-Host ".venv/ added to .gitignore"
-} else {
-  Write-Host ".venv/ already present in .gitignore"
-}
-```
-
-Jika `.gitignore` diubah, stage & commit (lihat bagian Git yang aman di bawah).
-
-Catatan: jangan men-commit isi .venv ke repo. Jika file .venv sudah pernah di-commit, lihat bagian "Membersihkan history" di bagian akhir.
-
----
-
-## 3. Cek file besar di folder `results` (aman)
-Gunakan skrip aman yang memeriksa keberadaan folder sebelum memanggil Get-ChildItem — mencegah error "path not found".
-
-```powershell
-$repoRoot = 'C:\Users\ASUS\Desktop\python-project'
-$project = Join-Path $repoRoot 'social-media-sentiment-analysis'
-$results = Join-Path $project 'results'
-
-if (-not (Test-Path $project)) { Write-Host "Project folder tidak ditemukan: $project" -ForegroundColor Yellow; return }
-if (-not (Test-Path $results)) { Write-Host "Folder results tidak ada: $results" -ForegroundColor Yellow; return }
-
-Get-ChildItem -Path $results -Recurse -File -ErrorAction SilentlyContinue |
-  Select-Object FullName, @{Name='MB';Expression={[math]::Round($_.Length/1MB,2)}} |
-  Format-Table -AutoSize
-```
-
-Cari file >100MB:
-```powershell
-Get-ChildItem -Path $results -Recurse -File -ErrorAction SilentlyContinue |
-  Where-Object { $_.Length -gt 100MB } |
-  Select-Object FullName, @{Name='MB';Expression={[math]::Round($_.Length/1MB,2)}}
-```
-
-Jika ada file >100MB: pindahkan ke luar repo atau gunakan Git LFS (langkah 4).
-
----
-
-## 4. (Opsional) Setup Git LFS untuk file besar
-Hanya jika perlu menyimpan file >100MB. Pastikan remote (GitHub) mendukung LFS.
-
-```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project'
-git lfs install
-git lfs track "social-media-sentiment-analysis/results/**"
-git add .gitattributes
-# Commit jika ada perubahan staged
+# commit only if there is staged content
 $staged = git diff --cached --name-only
-if ($staged) { git commit -m "chore: track results via git-lfs" } else { Write-Host "No .gitattributes changes to commit" }
-```
+if ($staged) {
+  git commit -m "docs: add/update README"
+} else {
+  Write-Host "Nothing to commit (no staged changes)." -ForegroundColor Yellow
+}
 
-Periksa kuota LFS akun/organisasi sebelum mendorong file besar.
-
----
-
-## 5. Menjalankan notebook untuk menghasilkan outputs (folder `results`)
-Aktifkan virtualenv, instal dependensi, lalu jalankan notebook. Contoh PowerShell:
-
-```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project'
-# buat dan aktifkan venv (jika belum)
-if (-not (Test-Path '.\.venv')) { python -m venv .venv }
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force  # jika perlu
-.\.venv\Scripts\Activate.ps1
-
-# instal requirements jika ada
-if (Test-Path '.\requirements.txt') { python -m pip install -r .\requirements.txt }
-if (Test-Path '.\social-media-sentiment-analysis\requirements.txt') { python -m pip install -r .\social-media-sentiment-analysis\requirements.txt }
-
-# jalankan notebook (nbconvert inplace)
-python -m nbconvert --to notebook --execute "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" --inplace
-
-# atau gunakan papermill untuk output terpisah
-python -m pip install papermill
-papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb"
-
-# verifikasi outputs
-Get-ChildItem -Path "social-media-sentiment-analysis\results" -Recurse | Select-Object FullName,Length
+# stage a concrete file (no angle brackets)
+$path = "social-media-sentiment-analysis\data.csv"
+if (Test-Path $path) {
+  git add $path
+} else {
+  Write-Host "File not found: $path" -ForegroundColor Yellow
+}
 ```
 
 ---
 
-## 6. Stage, commit, dan push dengan aman (langkah Git)
-Ikuti urutan ini, jalankan baris-per-baris dari root repo.
+## 3) Skrip PowerShell aman untuk stage → commit → push (tanpa `||`)
 
-- Pindah ke root repo:
+Salin & jalankan baris‑per‑baris dari root repo:
+
 ```powershell
-Set-Location 'C:\Users\ASUS\Desktop\python-project'
-```
+# Sesuaikan root dan project folder bila perlu
+$RepoRoot = 'C:\Users\ASUS\Desktop\python-project'
+$Project = Join-Path $RepoRoot 'social-media-sentiment-analysis'
+Set-Location $RepoRoot
 
-- Stage file dokumentasi dan output yang diinginkan (cek keberadaan sebelum add):
-```powershell
-$readme = '.\social-media-sentiment-analysis\README.md'
-$runme = '.\social-media-sentiment-analysis\RUNME.md'
-$notebookOut = '.\social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb'
-$resultsDir = '.\social-media-sentiment-analysis\results'
+# Paths yang ingin Anda commit (cek keberadaan dulu)
+$readme = Join-Path $Project 'README.md'
+$runme  = Join-Path $Project 'RUNME.md'
+$notebookOut = Join-Path $Project 'social-media-sentiment-analysis-output.ipynb'
+$resultsDir = Join-Path $Project 'results'
 
+# Stage only if files exist
 if (Test-Path $readme) { git add $readme } else { Write-Host "README.md not found; skipping." -ForegroundColor Yellow }
 if (Test-Path $runme)  { git add $runme  } else { Write-Host "RUNME.md not found; skipping." -ForegroundColor Yellow }
 if (Test-Path $notebookOut) { git add $notebookOut }
 
 if (Test-Path $resultsDir) {
-  # only stage results files if present and safe (no >100MB check here)
-  git add "$resultsDir\*"
+  # stage all files inside results (ensure results content is safe)
+  git add (Join-Path $resultsDir '*')
 } else {
-  Write-Host "No results folder to stage."
+  Write-Host "No results folder to stage." -ForegroundColor Yellow
 }
 
-git status --porcelain=1 --branch
-git commit -m "docs: add/update README and results for social-media-sentiment-analysis" || Write-Host "Nothing to commit (or commit failed)."
-```
+# Commit only if staged changes exist
+$staged = git diff --cached --name-only
+if ($staged) {
+  git commit -m "docs: add/update README and results for social-media-sentiment-analysis"
+} else {
+  Write-Host "Nothing to commit (no staged changes)." -ForegroundColor Yellow
+}
 
-- Sinkronisasi & push (aman):
-```powershell
+# Pull + rebase and push safely
 git fetch origin
 git pull --rebase --autostash origin main
-# resolve conflicts if prompted: fix files, git add "path\to\file", git rebase --continue
+# if conflicts occur, resolve them then run:
+# git rebase --continue
 git push origin main
 ```
 
-Jika branch bukan `main`, ganti `main` sesuai branch Anda.
+Catatan: jika Anda menggunakan branch selain `main`, ganti `main` sesuai branch Anda.
 
 ---
 
-## 7. Menyelesaikan rebase dan konflik (tips tanpa error PowerShell)
-PowerShell memperlakukan karakter `<` dan operator seperti `||` berbeda dari bash. Jangan gunakan format placeholder `<file>` — gunakan nama file nyata.
+## 4) Pastikan .venv tidak ter-track dan tidak muncul di diff/rebase
 
-Periksa konflik:
-```powershell
-git status
-git diff --name-only --diff-filter=U
-```
-
-Setelah Anda memperbaiki file konflik dengan editor, stage file tersebut dengan path nyata:
-```powershell
-git add "social-media-sentiment-analysis\path\to\fixed-file.ext"
-git rebase --continue
-```
-
-Jika Anda ingin membatalkan rebase:
-```powershell
-git rebase --abort
-```
-
-Jika Anda ingin mengembalikan semua perubahan lokal dan kembali ke HEAD (HATI‑HATI: ini membuang perubahan lokal):
-```powershell
-git reset --hard HEAD
-```
-
----
-
-## 8. Menghentikan pelacakan .venv (aman)
-Jika .venv sempat ter-track, lakukan langkah-langkah ini (tidak menggunakan operator shell yang tidak valid):
+Langkah aman: hapus .venv dari index (tracking) dan pastikan `.gitignore` men‑ignore .venv. Jalankan perintah ini dari root repo:
 
 ```powershell
 Set-Location 'C:\Users\ASUS\Desktop\python-project'
 
-# Hapus tracked .venv dari index (tidak menghapus file di disk)
+# Remove .venv from index if tracked (keamanan: keep files on disk)
 git ls-files --error-unmatch "social-media-sentiment-analysis/.venv" 2>$null
 if ($LASTEXITCODE -eq 0) {
   git rm -r --cached --ignore-unmatch "social-media-sentiment-analysis/.venv"
-  Write-Host "Removed .venv from index (cached)."
+  Write-Host "Removed tracked .venv files from index."
 } else {
   Write-Host "No tracked .venv found in index."
 }
 
-# Pastikan .gitignore berisi .venv/
-$existsVenv = Select-String -Path .gitignore -Pattern '.venv' -SimpleMatch -Quiet
-if (-not $existsVenv) {
-  Add-Content -Path .gitignore -Value "`n# ignore virtual environment`n.venv/"
-  git add .gitignore
-  git commit -m "chore: ignore .venv" || Write-Host "Nothing to commit for .gitignore"
+# Add .venv to .gitignore if missing
+$gitignore = Join-Path $RepoRoot '.gitignore'
+if (-not (Test-Path $gitignore)) { New-Item -Path $gitignore -ItemType File -Force | Out-Null }
+$hasVenv = Select-String -Path $gitignore -Pattern '\.venv' -SimpleMatch -Quiet
+if (-not $hasVenv) {
+  Add-Content -Path $gitignore -Value "`n# ignore virtual environment`n.venv/"
+  git add $gitignore
+  $staged = git diff --cached --name-only
+  if ($staged) { git commit -m "chore: ignore .venv" } else { Write-Host "No .gitignore changes to commit." -ForegroundColor Yellow }
 } else {
-  Write-Host ".venv already ignored."
+  Write-Host ".venv already present in .gitignore"
 }
 ```
 
-Jika file .venv telah masuk ke history remote dan perlu dihapus dari history, itu memerlukan alat seperti BFG atau git filter-repo. Ini akan menulis ulang history dan memerlukan koordinasi tim — jangan lakukan tanpa persetujuan.
+Jika beberapa file .venv sudah ter-commit ke history remote dan perlu dihapus dari history, itu memerlukan BFG atau git filter-repo — itu berisiko dan tidak disarankan tanpa koordinasi tim.
 
 ---
 
-## 9. Membersihkan file besar yang sudah ter-commit (opsional, berisiko)
-Jika Anda perlu menghapus file besar dari history, gunakan BFG atau git filter-repo. Contoh ringkas (koordinasikan dengan tim):
+## 5) Menjalankan papermill setelah perbaikan kernel (contoh PowerShell)
 
-- Gunakan BFG: https://rtyley.github.io/bfg-repo-cleaner/  
-- Setelah menjalankan BFG, jalankan:
-```bash
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
-git push --force-with-lease origin main
+Jika Anda telah menambahkan metadata kernelspec ke notebook atau ingin meng-override kernel:
+
+```powershell
+# Option A: run with explicit kernel name
+papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb" --kernel "python3"
+
+# Option B: if you updated notebook metadata via Jupyter UI or script, run without --kernel
+papermill "social-media-sentiment-analysis\social-media-sentiment-analysis.ipynb" "social-media-sentiment-analysis\social-media-sentiment-analysis-output.ipynb"
 ```
-JANGAN lakukan ini tanpa memahami konsekuensi.
+
+Jika papermill tetap error, first inspect notebook metadata:
+```powershell
+python - <<'PY'
+import nbformat, sys
+nb = nbformat.read("social-media-sentiment-analysis/social-media-sentiment-analysis.ipynb", as_version=4)
+print(nb.metadata.get("kernelspec"))
+PY
+```
+Output harus menampilkan dict dengan "name", contoh: `{'name': 'python3', 'display_name': 'Python 3'}`.
 
 ---
 
-## 10. Opsi tambahan / skrip otomatis
-Jika Anda mau, saya bisa menambahkan skrip PowerShell siap-pakai:
-- `fix-venv-rebase.ps1` — mendeteksi rebase, daftar konflik, hati-hati menghapus .venv dari index, menambahkan .gitignore, dan (opsional) auto-stage non-.venv conflicts.
-- `create_runme_and_push.ps1` — menyalin RUNME/README dari sumber lokal, menjalankan dry-run (file yang akan distage dan file >100MB), dan (opsional) menjalankan git add/commit/push.
+## 6) Jika rebase sedang berjalan — alur aman (tanpa `||`, tanpa angle brackets)
+Periksa status dan konflik:
+```powershell
+Set-Location 'C:\Users\ASUS\Desktop\python-project'
+git status --porcelain=1 --branch
+git diff --name-only --diff-filter=U
+```
+- Jika rebase aktif dan Anda ingin abort:
+  ```powershell
+  git rebase --abort
+  ```
+- Jika rebase aktif dan Anda telah menyelesaikan konflik dan men‑stage file, lanjutkan:
+  ```powershell
+  git rebase --continue
+  ```
 
-Katakan pilihan Anda: "Buat fix-venv-rebase.ps1" atau "Buat create_runme_and_push.ps1" atau "Saya jalankan manual".
+Jangan gunakan `git add <file-yang-diperbaiki>` literal — gunakan nama file nyata, mis:
+```powershell
+git add "social-media-sentiment-analysis\data.csv"
+git rebase --continue
+```
 
 ---
 
-Terima kasih — README ini disusun ulang untuk menghilangkan error PowerShell yang sering muncul (operator shell yang tidak valid, placeholder `<...>`, path yang tidak ada), dan menyediakan langkah-langkah aman agar Anda dapat menyimpan dokumentasi, menjalankan notebook, serta memasukkan hasil ke Git tanpa error. Ikuti tiap perintah baris‑per‑baris dan jangan jalankan perintah yang tidak Anda pahami.
+## 7) Ringkasan troubleshooting cepat untuk error yang Anda laporkan
+
+- Papermill ValueError: tambahkan kernelspec ke notebook (via Jupyter UI) atau pakai `--kernel` saat memanggil papermill; atau jalankan skrip Python yang menulis metadata kernelspec.
+- PowerShell ParserError karena `||`: ganti pola `cmd || echo` dengan if/else di PowerShell seperti contoh di bagian 2 dan 3.
+- PowerShell ParserError karena `<...>`: jangan gunakan tanda sudut; masukkan nama file nyata dalam tanda kutip.
+- .venv muncul sebagai deleted/modified: pastikan .venv ada di .gitignore, dan hapus dari index dengan `git rm -r --cached`.
+
+---
+
+## 8) Jika Anda ingin saya buatkan skrip otomatis (.ps1)
+
+Saya dapat membuat:
+- `fix-venv-rebase.ps1` — interaktif: mendeteksi rebase, menampilkan konflik, menghapus .venv dari index, menambahkan .gitignore, dan (opsional) auto-stage non-.venv conflicts and continue rebase.
+- `run-notebook-and-push.ps1` — menjalankan papermill (dengan opsi --kernel), memeriksa results, melakukan dry-run staging (menampilkan file besar dan file yang akan distage), lalu (opsional) commit/push.
+
+Ketik pilihan Anda: "Buat skrip fix-venv-rebase.ps1" atau "Buat skrip run-notebook-and-push.ps1" atau berikan output `git status --porcelain=1 --branch` sekarang supaya saya susun perintah konkret untuk keadaan Anda.
+
+Terima kasih — README ini sudah diperbarui untuk menghilangkan sumber error yang Anda alami dan menampilkan alur perbaikan yang aman dan PowerShell‑friendly.

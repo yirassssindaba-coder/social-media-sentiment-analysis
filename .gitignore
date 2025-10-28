@@ -1,1 +1,13 @@
 ﻿[ISI .gitignore DARI BAGIAN A DI SINI]
+# local python env
+.venv/
+venv/
+# bytecode
+__pycache__/
+*.pyc
+# jupyter checkpoints
+.ipynb_checkpoints/
+# OS files
+.DS_Store
+# logs
+*.log

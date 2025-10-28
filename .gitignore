@@ -24,3 +24,7 @@ venv/
 
 # ignore virtual environment
 .venv/
+
+# Ensure results are tracked
+!social-media-sentiment-analysis/results/
+!social-media-sentiment-analysis/results/**

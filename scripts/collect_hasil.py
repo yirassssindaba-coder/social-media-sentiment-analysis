@@ -1,9 +1,10 @@
 ﻿#!/usr/bin/env python3
 """
-Skrip untuk mengumpulkan file hasil ke folder 'hasil' di root repo.
+Skrip untuk mengumpulkan file hasil ke folder 'files/social-media-sentiment-analysis'
+di root repo.
 
 Contoh (PowerShell):
-  python .\scripts\collect_hasil.py -p 'social-media-sentiment-analysis\results\**\*' 'social-media-sentiment-analysis\models\**\*' -o hasil
+  python .\scripts\collect_hasil.py -p 'social-media-sentiment-analysis\results\**\*' -o files\social-media-sentiment-analysis
 
 Jalankan dari root repo (direktori yang berisi .git).
 """
@@ -34,8 +35,8 @@ def gather(patterns, out_dir):
 def main():
     parser = argparse.ArgumentParser(description="Collect result files into a folder")
     parser.add_argument("--patterns", "-p", nargs="+", required=True,
-                        help="Glob patterns to collect, e.g. 'data/raw/*.csv' 'models/**/*.pkl'")
-    parser.add_argument("--out", "-o", default="hasil", help="Output folder name (default: hasil)")
+                        help="Glob patterns to collect, e.g. 'social-media-sentiment-analysis\\results\\**\\*'")
+    parser.add_argument("--out", "-o", default="files\\social-media-sentiment-analysis", help="Output folder name")
     args = parser.parse_args()
 
     copied = gather(args.patterns, args.out)

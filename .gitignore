@@ -28,3 +28,8 @@ venv/
 # Ensure results are tracked
 !social-media-sentiment-analysis/results/
 !social-media-sentiment-analysis/results/**
+
+# ignore virtual env and pycache
+social-media-sentiment-analysis/venv/
+__pycache__/
+*.pyc

@@ -33,3 +33,6 @@ venv/
 social-media-sentiment-analysis/venv/
 __pycache__/
 *.pyc
+
+# ignore virtual environment
+.venv/

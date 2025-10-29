@@ -1,35 +1,4 @@
-﻿# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
+﻿__pycache__/
 .venv/
 venv/
-ENV/
-env/
-env.bak/
-
-# Packaging
-*.egg-info/
-dist/
-build/
-
-# Environment variables
-.env
-.env.*
-
-# Jupyter
-.ipynb_checkpoints/
-
-# IDEs and editors
-.vscode/
-.idea/
-
-# Database / system
-*.sqlite3
-.DS_Store
-
-# Logs
-*.log
+*.py[cod]

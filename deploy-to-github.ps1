@@ -1,17 +1,23 @@
 <#
-.SYNOPSIS
-Initialize (if needed), add files, commit, set main branch, set remote (HTTPS or SSH), and push to GitHub.
-Usage:
+deploy-to-github.ps1
+Safe PowerShell script to initialize (if needed), add files, commit (only if there are changes),
+set branch to main, set remote (HTTPS or SSH), and push to origin/main.
+
+Usage examples (run from project folder):
   # HTTPS (default)
-  .\deploy-to-github.ps1 -RemoteUrl "https://github.com/yirassssindaba-coder/myproject.git"
+  .\deploy-to-github.ps1
 
   # SSH
   .\deploy-to-github.ps1 -UseSSH
 
-Run this script from inside the project folder: cd "C:\Users\ASUS\Desktop\python-project-remote"
+  # Force replace existing origin remote with the chosen URL
+  .\deploy-to-github.ps1 -ForceRemoteReplace
+
+This script avoids bash-only operators (||, <<, <) and uses PowerShell-safe constructs.
 #>
 
 param(
+    [string]$ProjectPath = ".",
     [string]$RemoteUrl = "https://github.com/yirassssindaba-coder/myproject.git",
     [switch]$UseSSH,
     [switch]$ForceRemoteReplace
@@ -19,20 +25,41 @@ param(
 
 function Run-Git {
     param([string[]]$Args)
-    Write-Host "git $($Args -join ' ')" -ForegroundColor DarkGray
-    & git @Args
-    return $LASTEXITCODE
+    # Compose display string
+    $cmdLine = "git " + ($Args -join ' ')
+    Write-Host $cmdLine -ForegroundColor DarkGray
+
+    # Run git and capture output and exit code
+    $output = & git @Args 2>&1
+    $code = $LASTEXITCODE
+
+    # Normalize output to single string
+    if ($output -is [array]) {
+        $outText = ($output -join "`n")
+    } else {
+        $outText = [string]$output
+    }
+
+    return [pscustomobject]@{ Code = $code; Output = $outText }
 }
 
-# Pastikan kita di folder proyek
-Write-Host "Current folder: $(Get-Location)"
+# Ensure git exists
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Error "git not found in PATH. Install Git or open a shell with git available."
+    exit 1
+}
 
-# Buat file dasar jika belum ada
+# Move to project folder
+Set-Location -Path $ProjectPath
+
+Write-Host "Working folder: $(Get-Location)" -ForegroundColor Cyan
+
+# Create base files if missing
 if (-not (Test-Path README.md)) {
-    "## myproject" | Set-Content -Path README.md -Encoding UTF8
+    "# myproject" | Set-Content -Path README.md -Encoding UTF8
     Write-Host "Created README.md"
 } else {
-    Write-Host "README.md already exists"
+    Write-Host "README.md exists"
 }
 
 if (-not (Test-Path .gitignore)) {
@@ -75,7 +102,7 @@ build/
 '@ | Set-Content -Path .gitignore -Encoding UTF8
     Write-Host "Created .gitignore"
 } else {
-    Write-Host ".gitignore already exists"
+    Write-Host ".gitignore exists"
 }
 
 if (-not (Test-Path LICENSE)) {
@@ -88,97 +115,117 @@ in the Software without restriction...
 '@ | Set-Content -Path LICENSE -Encoding UTF8
     Write-Host "Created LICENSE"
 } else {
-    Write-Host "LICENSE already exists"
+    Write-Host "LICENSE exists"
 }
 
-# Init repo if needed
-if (-not (Test-Path .git\config)) {
-    $rc = Run-Git -Args @('init')
-    if ($rc -ne 0) { Write-Error "git init failed (exit $rc)"; exit $rc }
-    Write-Host "Initialized new git repository"
+# Initialize repo if needed
+$inside = Run-Git -Args @('rev-parse', '--is-inside-work-tree')
+if ($inside.Code -ne 0 -or $inside.Output -notmatch 'true') {
+    $r = Run-Git -Args @('init')
+    if ($r.Code -ne 0) { Write-Error "git init failed: $($r.Output)"; exit $r.Code }
+    Write-Host "Initialized git repository"
 } else {
     Write-Host "Git repository already initialized"
 }
 
-# Set user identity locally if not set (optional)
-if (-not (Run-Git -Args @('config', '--get', 'user.name') ) ) {
+# Set local user.name/email if not set
+$userName = Run-Git -Args @('config', '--get', 'user.name')
+if ($userName.Code -ne 0 -or [string]::IsNullOrWhiteSpace($userName.Output)) {
     Run-Git -Args @('config', 'user.name', 'Robee 1999') | Out-Null
     Run-Git -Args @('config', 'user.email', 'your-email@example.com') | Out-Null
-    Write-Host "Set local git user.name and user.email (change as needed)"
+    Write-Host "Set local git user.name and user.email (edit if needed)"
+} else {
+    Write-Host "Local git user.name is: $($userName.Output.Trim())"
 }
 
-# Add and commit
-Run-Git -Args @('add', '.')
-$commitCode = Run-Git -Args @('commit', '-m', 'Initial commit: add project files')
-if ($commitCode -ne 0) {
-    # commit failed — likely "nothing to commit" or other error
-    if (Test-Path .git) {
-        Write-Host "Commit returned exit code $commitCode. Likely nothing to commit or commit failed. Run 'git status' to inspect." -ForegroundColor Yellow
+# Add all files (respect .gitignore)
+$rAdd = Run-Git -Args @('add', '--all')
+if ($rAdd.Code -ne 0) {
+    Write-Warning "git add returned non-zero code: $($rAdd.Output)"
+}
+
+# Check if there are changes to commit using porcelain
+$status = Run-Git -Args @('status', '--porcelain')
+if ($status.Output -and ($status.Output.Trim().Length -gt 0)) {
+    $rCommit = Run-Git -Args @('commit', '-m', 'Initial commit: add project files')
+    if ($rCommit.Code -ne 0) {
+        Write-Error "git commit failed: $($rCommit.Output)"
+        exit $rCommit.Code
     } else {
-        Write-Error "Commit failed with exit code $commitCode"
-        exit $commitCode
+        Write-Host "Commit created."
     }
 } else {
-    Write-Host "Commit successful."
+    Write-Host "Nothing to commit (working tree clean)."
 }
 
-# Ensure main branch name
-$rc = Run-Git -Args @('branch', '-M', 'main')
-if ($rc -ne 0) {
-    Write-Host "Could not rename branch to main (exit $rc). It might already be named main." -ForegroundColor Yellow
+# Ensure current branch is main
+# Determine current branch name
+$branch = Run-Git -Args @('rev-parse', '--abbrev-ref', 'HEAD')
+if ($branch.Code -eq 0) {
+    $curBranch = $branch.Output.Trim()
+    if ($curBranch -ne 'main') {
+        $r = Run-Git -Args @('branch', '-M', 'main')
+        if ($r.Code -ne 0) {
+            Write-Warning "Could not rename branch to main: $($r.Output)"
+        } else {
+            Write-Host "Branch renamed to main"
+        }
+    } else {
+        Write-Host "Current branch already 'main'"
+    }
 } else {
-    Write-Host "Branch set to main."
+    Write-Warning "Cannot determine current branch: $($branch.Output)"
 }
 
-# Setup remote
-if ($ForceRemoteReplace) {
-    Run-Git -Args @('remote', 'remove', 'origin') | Out-Null
-    Write-Host "Removed existing origin (forced)."
-}
-
-# Remove origin if exists and user wants to replace
+# Remote handling
 if ($UseSSH) {
-    $remoteUrl = "git@github.com:yirassssindaba-coder/myproject.git"
+    $targetRemote = "git@github.com:yirassssindaba-coder/myproject.git"
 } else {
-    $remoteUrl = $RemoteUrl
+    $targetRemote = $RemoteUrl
 }
 
-# If origin exists, set-url; otherwise add
-$remotes = (git remote) 2>$null
-if ($remotes -and $remotes -match 'origin') {
-    Run-Git -Args @('remote', 'set-url', 'origin', $remoteUrl) | Out-Null
-    Write-Host "Updated origin to $remoteUrl"
+# Check if origin exists
+$remoteGet = Run-Git -Args @('remote', 'get-url', 'origin')
+if ($remoteGet.Code -eq 0) {
+    $existing = $remoteGet.Output.Trim()
+    Write-Host "Existing origin: $existing"
+    if ($ForceRemoteReplace) {
+        $r = Run-Git -Args @('remote', 'set-url', 'origin', $targetRemote)
+        if ($r.Code -ne 0) { Write-Error "Failed to set origin URL: $($r.Output)"; exit $r.Code }
+        Write-Host "Replaced origin with $targetRemote"
+    } else {
+        Write-Host "Leaving existing origin (use -ForceRemoteReplace to replace)."
+    }
 } else {
-    Run-Git -Args @('remote', 'add', 'origin', $remoteUrl) | Out-Null
-    Write-Host "Added origin $remoteUrl"
+    $r = Run-Git -Args @('remote', 'add', 'origin', $targetRemote)
+    if ($r.Code -ne 0) { Write-Error "Failed to add origin: $($r.Output)"; exit $r.Code }
+    Write-Host "Added origin $targetRemote"
 }
 
-# Try to push; if fails, attempt to fetch and rebase then push
-$pushCode = Run-Git -Args @('push', '-u', 'origin', 'main')
-if ($pushCode -eq 0) {
+# Push to origin main
+$push = Run-Git -Args @('push', '-u', 'origin', 'main')
+if ($push.Code -eq 0) {
     Write-Host "Push succeeded."
     exit 0
 } else {
-    Write-Host "Initial push failed with exit code $pushCode. Trying to fetch & rebase remote main, then push again." -ForegroundColor Yellow
-    # fetch
-    $fetchCode = Run-Git -Args @('fetch', 'origin')
-    if ($fetchCode -ne 0) {
-        Write-Warning "git fetch failed (exit $fetchCode). Resolve network/auth issues and try again."
-        exit $fetchCode
+    Write-Warning "Initial push failed: $($push.Output)"
+    Write-Host "Trying fetch + pull --rebase then push again..."
+    $fetch = Run-Git -Args @('fetch', 'origin')
+    if ($fetch.Code -ne 0) { Write-Error "git fetch failed: $($fetch.Output)"; exit $fetch.Code }
+
+    $pull = Run-Git -Args @('pull', '--rebase', 'origin', 'main')
+    if ($pull.Code -ne 0) {
+        Write-Warning "git pull --rebase failed: $($pull.Output)"
+        Write-Host "Resolve conflicts manually (git status) then run: git push -u origin main"
+        exit $pull.Code
     }
 
-    # Try rebase on origin/main
-    $rebaseCode = Run-Git -Args @('pull', '--rebase', 'origin', 'main')
-    if ($rebaseCode -ne 0) {
-        Write-Warning "git pull --rebase failed (exit $rebaseCode). You might have to resolve conflicts manually. Run 'git status'."
-        exit $rebaseCode
-    }
-
-    # Try push again
-    $push2Code = Run-Git -Args @('push', '-u', 'origin', 'main')
-    if ($push2Code -ne 0) {
-        Write-Warning "Second push attempt failed (exit $push2Code). If you understand the consequences, you can force-push: git push -u --force origin main"
-        exit $push2Code
+    $push2 = Run-Git -Args @('push', '-u', 'origin', 'main')
+    if ($push2.Code -ne 0) {
+        Write-Error "Second push attempt failed: $($push2.Output)"
+        Write-Host "If you know what you're doing and want to overwrite remote, run:"
+        Write-Host "  git push -u --force origin main"
+        exit $push2.Code
     } else {
         Write-Host "Push after rebase succeeded."
         exit 0

@@ -1,87 +1,38 @@
-<#
-.SYNOPSIS
-  Safe PowerShell script to set-location to a local project folder, create basic files if missing,
-  and perform a safe Git sync (add/commit/fetch + pull --rebase + push) to a remote GitHub repo.
+# Sinkronisasi Project ke GitHub (PowerShell safe)
 
-.DESCRIPTION
-  This script implements the steps in your "Sinkronisasi Project ke GitHub (PowerShell safe)" document.
-  It is idempotent and conservative: it will not force-push or force-add ignored files unless you explicitly ask.
-  Use -WhatIf to preview some operations where appropriate.
+## Ringkasan
+Dokumen ini berisi rangkaian perintah PowerShell yang aman untuk menambahkan, meng‑commit, menyinkronkan, dan mendorong (push) seluruh isi folder proyek
+`C:\Users\ASUS\Desktop\python-project-remote` ke repository GitHub Anda. Semua perintah disusun agar kompatibel dengan PowerShell (tanpa operator bash yang tidak tersedia)
+dan mencakup langkah sinkronisasi remote (fetch + pull --rebase) untuk menghindari penolakan push karena non‑fast‑forward.
 
-.PARAMETER RepoDir
-  Full path to the local project folder. Default: C:\Users\ASUS\Desktop\python-project-remote
+## Prasyarat
+- Git terpasang dan tersedia di PATH (`git --version`).
+- Akses ke repository remote (HTTPS atau SSH). Untuk HTTPS disarankan menggunakan Personal Access Token (PAT).
+- Jalankan PowerShell sebagai user biasa (tidak perlu Administrator).
 
-.PARAMETER RepoUrl
-  Remote repository URL to set as origin if not set (or different). Default uses the example repo from your doc.
+## Catatan Penting
+- Skrip/perintah tidak akan melakukan force-push secara otomatis. Hindari `--force` kecuali Anda memahami risikonya.
+- Disarankan untuk tidak memasukkan virtual environment (`.venv` / `venv`) ke repo. Gunakan `requirements.txt` atau `environment.yml` sebagai gantinya.
+- Perintah dapat dicopy–paste langsung ke PowerShell. Jika ExecutionPolicy mencegah menjalankan skrip, gunakan `-ExecutionPolicy Bypass` saat memanggil file `.ps1`.
 
-.PARAMETER CommitMessage
-  Commit message to use when there are staged changes (default "Initial commit: add project files").
+---
 
-.PARAMETER ForceAddPaths
-  Array of paths to force-add even if matched by .gitignore (use sparingly). Example: -ForceAddPaths ".venv" "data/bigfile.zip"
+## Langkah singkat (copy → paste ke PowerShell)
 
-.PARAMETER NoRebase
-  If set, script will use `git pull --no-rebase` (merge) instead of `git pull --rebase origin main`.
+### 1) Masuk folder dan cek Git tersedia
+```powershell
+cd "C:\Users\ASUS\Desktop\python-project-remote"
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Write-Error "git tidak ditemukan. Instal Git terlebih dahulu."; exit 1 }
+git status
+git remote -v
+```
 
-.EXAMPLE
-  pwsh -ExecutionPolicy Bypass -File .\deploy-clean.ps1
-  pwsh -ExecutionPolicy Bypass -File .\deploy-clean.ps1 -RepoDir "C:\path\to\repo" -Entrypoint "scripts\run_sentiment.py" -ForceAddPaths ".venv"
+### 2) Buat file dasar jika perlu (PowerShell-safe)
+```powershell
+# README
+if (-not (Test-Path README.md)) { Set-Content -Path README.md -Value "# myproject" -Encoding UTF8; Write-Host "README.md dibuat" } else { Write-Host "README.md sudah ada" }
 
-.NOTES
-  - Run as normal user (no need for Administrator).
-  - This script will echo instructions if rebase results in conflicts and will stop; resolve conflicts manually then continue.
-#>
-
-param(
-    [string]$RepoDir = "C:\Users\ASUS\Desktop\python-project-remote",
-    [string]$RepoUrl = "https://github.com/yirassssindaba-coder/myproject.git",
-    [string]$CommitMessage = "Initial commit: add project files",
-    [string[]]$ForceAddPaths = @(),
-    [switch]$NoRebase
-)
-
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
-function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    $ts = (Get-Date).ToString("s")
-    $line = "[$ts] [$Level] $Message"
-    Write-Host $line
-}
-
-# 1) Validate and Set-Location
-if (-not (Test-Path -Path $RepoDir)) {
-    Write-Log "RepoDir not found: $RepoDir" "ERROR"
-    throw "Directory does not exist: $RepoDir"
-}
-Set-Location -Path $RepoDir
-Write-Log "Working directory: $(Get-Location)"
-
-# 2) Ensure git available
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Log "git not found in PATH. Install Git and re-run." "ERROR"
-    throw "git not found"
-}
-Write-Log "git found: $(git --version | Out-String).Trim()"
-
-# 3) Show current git status / remotes
-try {
-    git status --porcelain 2>$null | Out-Null
-} catch {
-    Write-Log "Not a git repository yet (no .git). Initializing local repo..." "WARN"
-    git init
-}
-
-Write-Log "Current remotes:"
-git remote -v | ForEach-Object { Write-Log "  $_" }
-
-# 4) Create basic files if missing (README.md, .gitignore, LICENSE)
-if (-not (Test-Path README.md)) {
-    " # myproject`n`nProject generated on $(Get-Date -Format u)" | Set-Content -Path README.md -Encoding UTF8
-    Write-Log "README.md created"
-} else { Write-Log "README.md exists" }
-
+# .gitignore
 if (-not (Test-Path .gitignore)) {
 @'
 __pycache__/
@@ -100,109 +51,176 @@ build/
 *.sqlite3
 .DS_Store
 '@ | Set-Content -Path .gitignore -Encoding UTF8
-    Write-Log ".gitignore created"
-} else { Write-Log ".gitignore exists" }
+    Write-Host ".gitignore dibuat"
+} else { Write-Host ".gitignore sudah ada" }
 
+# LICENSE
 if (-not (Test-Path LICENSE)) {
 @'
 Copyright (c) 1999 Robee
 
 Permission is hereby granted, free of charge, to any person obtaining a copy...
 '@ | Set-Content -Path LICENSE -Encoding UTF8
-    Write-Log "LICENSE created"
-} else { Write-Log "LICENSE exists" }
+    Write-Host "LICENSE dibuat"
+} else { Write-Host "LICENSE sudah ada" }
+```
 
-# 5) Stage changes
-Write-Log "Staging all changes..."
+### 3) Tambahkan semua perubahan dan commit (hanya jika ada perubahan)
+```powershell
 git add --all
 
-# 6) Optionally force-add specified ignored paths
-if ($ForceAddPaths -and $ForceAddPaths.Count -gt 0) {
-    foreach ($p in $ForceAddPaths) {
-        Write-Log "Force-adding path: $p"
-        git add -f -- $p
-    }
-}
-
-# 7) Commit if there are changes
+# Periksa perubahan secara aman
 $status = git status --porcelain
 if ($status -and $status.Trim().Length -gt 0) {
-    Write-Log "Changes detected, creating commit..."
-    git commit -m $CommitMessage
-    Write-Log "Commit created."
+    git commit -m "Initial commit: add project files"
+    Write-Host "Commit berhasil."
 } else {
-    Write-Log "Nothing to commit (working tree clean)."
+    Write-Host "Nothing to commit (working tree clean)."
 }
+```
 
-# 8) Ensure branch main
-$currentBranch = (git rev-parse --abbrev-ref HEAD) -replace "`n",""
-if ($LASTEXITCODE -ne 0) {
-    Write-Log "Unable to determine current branch" "ERROR"
-    throw "git rev-parse failed"
-}
-if ($currentBranch -ne "main") {
-    Write-Log "Renaming or switching branch to 'main' (current: $currentBranch)"
+### 4) Pastikan branch utama bernama `main` (aman)
+```powershell
+$current = git rev-parse --abbrev-ref HEAD
+if ($LASTEXITCODE -ne 0) { Write-Error "Gagal menentukan branch saat ini"; exit 1 }
+if ($current -ne "main") {
     git branch -M main
-    Write-Log "Now on branch: main"
+    Write-Host "Branch diganti menjadi main"
 } else {
-    Write-Log "Already on branch: main"
+    Write-Host "Sudah di branch main"
 }
+```
 
-# 9) Configure remote origin
-$existingOrigin = $null
-try { $existingOrigin = git remote get-url origin 2>$null } catch {}
-if ($existingOrigin) {
-    Write-Log "Existing origin: $existingOrigin"
-    if ($existingOrigin -ne $RepoUrl) {
-        Write-Log "Updating origin to: $RepoUrl"
-        git remote set-url origin $RepoUrl
+### 5) Set remote `origin` jika perlu (ganti URL sesuai repo Anda)
+```powershell
+$target = "https://github.com/yirassssindaba-coder/myproject.git"
+# Jika ingin pakai SSH: $target = "git@github.com:yirassssindaba-coder/myproject.git"
+
+# Jika origin belum ada, tambahkan; jika ada, tampilkan dan ganti jika perlu
+$existing = git remote get-url origin 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Existing origin: $existing"
+    if ($existing -ne $target) {
+        # ganti origin hanya jika berbeda
+        git remote set-url origin $target
+        Write-Host "Origin diubah menjadi $target"
     } else {
-        Write-Log "Origin already set to target URL."
+        Write-Host "Origin sudah mengarah ke $target"
     }
 } else {
-    Write-Log "Adding origin: $RepoUrl"
-    git remote add origin $RepoUrl
+    git remote add origin $target
+    Write-Host "Origin ditambahkan: $target"
 }
+```
 
-# 10) Fetch remote refs
-Write-Log "Fetching from origin..."
+### 6) Sinkronkan dengan remote lalu push (aman — rebase direkomendasikan)
+```powershell
+# Ambil referensi remote dulu
 git fetch origin
 
-# 11) Pull with rebase (or merge if NoRebase specified)
-if ($NoRebase) {
-    Write-Log "Pulling (merge) from origin/main..."
-    $pullOutput = git pull origin main 2>&1
-} else {
-    Write-Log "Pulling with rebase from origin/main..."
-    $pullOutput = git pull --rebase origin main 2>&1
-}
-
+# Coba rebase lokal di atas origin/main (lebih bersih). Jika gagal karena konflik, Anda akan diberi tahu.
+$rebaseResult = git pull --rebase origin main 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning "git pull reported an error:"
-    Write-Host $pullOutput
-    Write-Host ""
-    Write-Host "If there are conflicts: resolve them, then run:"
+    Write-Warning "git pull --rebase mengembalikan error:"
+    Write-Host $rebaseResult
+    Write-Host "Jika muncul konflik: buka file yang konflik, selesaikan, lalu jalankan:"
     Write-Host "    git add `"<path-to-resolved-file>`""
-    Write-Host "    git rebase --continue   # if you used rebase"
-    Write-Host "Or abort rebase with: git rebase --abort"
-    throw "Pull failed or rebase produced conflicts. Manual resolution required."
+    Write-Host "    git rebase --continue"
+    Write-Host "Atau batalkan rebase dengan: git rebase --abort"
+    exit 1
 } else {
-    Write-Log "Pull/rebase successful."
+    Write-Host "Rebase/pull sukses. Sekarang push ke origin/main..."
+    git push -u origin main
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Push berhasil."
+    } else {
+        Write-Error "Push gagal. Jika memang ingin menimpa remote (RISIKO), jalankan: git push --force-with-lease origin main"
+        exit 1
+    }
 }
+```
 
-# 12) Push to origin/main (no force)
-Write-Log "Pushing to origin main..."
+---
+
+## Memaksa menambahkan file/folder yang di-ignore
+Jika Anda benar‑benar perlu memasukkan folder yang disebutkan di `.gitignore` (mis. `.venv`), lakukan salah satu:
+- Hapus entri terkait dari `.gitignore`, lalu:
+```powershell
+git add --all
+git commit -m "Add previously ignored files"
 git push -u origin main
-if ($LASTEXITCODE -ne 0) {
-    Write-Log "Push failed. To overwrite remote (risky) use:" "WARN"
-    Write-Host "    git push --force-with-lease origin main"
-    throw "git push failed"
-} else {
-    Write-Log "Push succeeded. Repository synchronized."
-}
+```
+- Atau paksa tanpa mengubah `.gitignore` (tidak direkomendasikan untuk venv):
+```powershell
+git add -f path\to\ignored-folder-or-file
+git commit -m "Force add ignored file/folder (not recommended)"
+git push -u origin main
+```
 
-# 13) Final notes to user
-Write-Log "Sync complete. Review logs above for details. If you want automatic LFS for large files, run:"
-Write-Host "    git lfs install"
-Write-Host "    git lfs track \"*.zip\"  # example"
-Write-Host "Then commit .gitattributes and push."
+---
+
+## File besar (>100 MB) — Gunakan Git LFS
+```powershell
+git lfs install
+git lfs track "*.zip"       # contoh pattern
+git add .gitattributes
+git add path\to\largefile
+git commit -m "Add large files with LFS"
+git push origin main
+```
+
+---
+
+## Troubleshooting singkat
+- Push ditolak ("fetch first" / "non‑fast‑forward"): jalankan:
+```powershell
+git fetch origin
+git pull --rebase origin main
+# jika konflik: edit file, lalu:
+git add "<path-to-resolved-file>"
+git rebase --continue
+git push -u origin main
+```
+- Jika PowerShell menolak menjalankan skrip: tambahkan `-ExecutionPolicy Bypass` saat memanggil file `.ps1`.
+- Jika muncul peringatan CRLF/LF: jalankan `git config core.autocrlf true` pada Windows.
+- Untuk membersihkan entri duplikat `branch.main.remote`:
+```powershell
+git config --local --unset-all branch.main.remote
+git config --local branch.main.remote origin
+```
+
+---
+
+## Rekomendasi praktik
+- Jangan commit virtualenv; gunakan `requirements.txt` / `environment.yml`.
+- Gunakan Git LFS untuk file biner besar.
+- Jangan memaksa (`-f`) menambahkan file sensitif (credential, kunci pribadi).
+- Sebelum melakukan operasi massal, verifikasi dengan `git status --porcelain` dan `git log --oneline -n 5`.
+
+---
+
+## Opsi: deploy-clean.ps1 (opsional)
+Jika Anda lebih suka otomatisasi, buat file `deploy-clean.ps1` dengan konten yang sesuai untuk menjalankan seluruh langkah di atas. Contoh pemanggilan:
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\deploy-clean.ps1 -RepoDir "C:\Users\ASUS\Desktop\python-project-remote"
+```
+Fitur yang umumnya disediakan script tersebut:
+- `Set-Location` ke folder proyek
+- Inisialisasi repo bila belum ada
+- Membuat README/.gitignore/LICENSE bila belum ada
+- `git add --all`, commit jika ada perubahan
+- Mengatur branch `main`
+- Menyusun remote origin bila perlu
+- `git fetch` dan `git pull --rebase origin main`
+- `git push -u origin main`
+
+---
+
+## Lanjutan (opsional)
+Jika Anda ingin saya:
+- membuat file PowerShell `deploy-clean.ps1` lengkap dan siap pakai, atau
+- menambahkan logging ke file, atau
+- menambahkan fitur Git LFS otomatis berdasarkan pola file,  
+sebutkan pilihan Anda dan saya akan sediakan file `.ps1` lengkap siap pakai.
+
+---
